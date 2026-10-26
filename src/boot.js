@@ -2,10 +2,10 @@ import {R,LW,LH,TS,setupCam} from './dims.js?v=3';
 import {C} from './ui.js?v=3';
 export class Boot extends Phaser.Scene{constructor(){super('Boot')}
  create(){const W=LW,H=LH,tx=this.textures;
-  // supersampled canvas textures: drawn at TS x, frame trimmed back to logical size so scale math is unchanged
+  // supersampled canvas textures: drawn at TS x, frame resized to logical size with full-source UVs so scale math is unchanged
   const dither=(c,W2,H2)=>{const id=c.getImageData(0,0,W2,H2),a=id.data;for(let i=3;i<a.length;i+=4){if(a[i]>0&&a[i]<255)a[i]=Math.max(0,Math.min(255,a[i]+(Math.random()*2-1)*1.5));}c.putImageData(id,0,0);};
   const cv=(k,w,h,fn,o={})=>{const S=o.s||TS;const t=tx.createCanvas(k,w*S,h*S);const c=t.getContext();c.imageSmoothingEnabled=true;c.save();c.scale(S,S);fn(c,w,h);c.restore();if(o.dither)dither(c,w*S,h*S);t.refresh();
-   if(!o.noTrim){const f=t.get();f.setTrim(w,h,0,0,w,h);}t.setFilter(Phaser.Textures.FilterMode.LINEAR);};
+   if(!o.noTrim){const f=t.get(),u=[f.u0,f.v0,f.u1,f.v1];f.setSize(w,h,0,0);[f.u0,f.v0,f.u1,f.v1]=u;}t.setFilter(Phaser.Textures.FilterMode.LINEAR);};
   cv('glow',128,128,(c)=>{const g=c.createRadialGradient(64,64,0,64,64,64);const P=[[0,1],[0.25,0.45],[0.6,0.1],[1,0]];for(let i=0;i<=24;i++){const x=i/24;let j=0;while(x>P[j+1][0])j++;const t=(x-P[j][0])/(P[j+1][0]-P[j][0]),e=t*t*(3-2*t);g.addColorStop(x,`rgba(255,255,255,${(P[j][1]+(P[j+1][1]-P[j][1])*e).toFixed(4)})`);}c.fillStyle=g;c.fillRect(0,0,128,128);},{dither:true});
   cv('dot',32,32,(c)=>{const g=c.createRadialGradient(16,16,0,16,16,16);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(0.35,'rgba(255,255,255,0.8)');g.addColorStop(1,'rgba(255,255,255,0)');c.fillStyle=g;c.fillRect(0,0,32,32);});
   cv('spark',32,8,(c)=>{const g=c.createLinearGradient(0,0,32,0);g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(1,'rgba(255,255,255,1)');c.fillStyle=g;c.beginPath();c.ellipse(16,4,16,3,0,0,7);c.fill();});
