@@ -195,7 +195,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   const rank0=rankOf(d.xp||0);d.xp=(d.xp||0)+R.latches+R.perfects*2+R.chords*5;const rank1=rankOf(d.xp);this.rankUp=rank1>rank0?rank1:0;if(this.rankUp){d.dust+=rank1*40;}
   if(R.time<35)d.assist=Math.min(1,d.assist+0.12);else if(R.time>80)d.assist=Math.max(0,d.assist-0.08);
   ensureMissions(d);const done=[];const val={latch:R.latches,perfect:R.perfects,combo:R.maxCombo,sector:this.sector+1,score:R.score,chord:R.chords,bank:R.banks,gold:R.golds};
-  d.missions=d.missions.map(m=>{if(val[m.type]>=m.n){done.push(m);d.dust+=m.reward;d.mDone++;return newMission(d.mDone);}return m;});
+  d.missions=d.missions.map(m=>{if(val[m.type]>=m.n){done.push(m);d.dust+=m.reward;d.mDone++;return null;}return m;}).filter(Boolean);ensureMissions(d);
   d.tut=true;S.save();
   this.time.delayedCall(900,()=>this.results(why,dust,newBest,done));}
  results(why,dust,newBest,done){const W=this.W,H=this.H,R=this.R,d=this.d;const L=[];const z=o=>{o.setScrollFactor(0).setDepth(1200);L.push(o);return o;};

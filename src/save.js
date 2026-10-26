@@ -33,4 +33,4 @@ const POOL=[
  ['gold','Crack {n} prism stars',[1,2,4]],
 ];
 export function newMission(level){const p=POOL[Math.floor(Math.random()*POOL.length)];const t=p[2][Math.min(p[2].length-1,Math.floor(level/3)+Math.floor(Math.random()*2))];return {type:p[0],n:t,text:p[1].replace('{n}',t.toLocaleString()),reward:Math.round(40+t/(p[0]==='score'?60:1)*(p[0]==='score'?1:6)+level*8),prog:0};}
-export function ensureMissions(d){d.missions=(d.missions||[]).filter(m=>m&&m.type);while(d.missions.length<3)d.missions.push(newMission(d.mDone));}
+export function ensureMissions(d){d.missions=(d.missions||[]).filter(m=>m&&m.type);const seen=new Set();d.missions=d.missions.filter(m=>!seen.has(m.type)&&seen.add(m.type));while(d.missions.length<3){let m,k=0;do{m=newMission(d.mDone)}while(seen.has(m.type)&&k++<30);seen.add(m.type);d.missions.push(m);}}

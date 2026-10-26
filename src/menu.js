@@ -4,50 +4,79 @@ import {RANKS,rankOf,rankNext} from './game.js';
 import {SKINS,UPGRADES,upCost,ensureMissions} from './save.js';
 const today=()=>new Date().toISOString().slice(0,10);
 export class Menu extends Phaser.Scene{constructor(){super('Menu')}
- create(){const W=this.scale.width,H=this.scale.height,S=this.registry.get('save'),d=S.d;ensureMissions(d);S.save();
-  this.bg=background(this);this.fx=[];
-  // orbiting demo comet around a hero star
-  const cx=W/2,cy=H*0.27;
-  this.add.image(cx,cy,'glow').setTint(C.vio).setBlendMode('ADD').setScale(3.2).setAlpha(0.45);
-  const star=this.add.image(cx,cy,'node').setTint(C.cyan).setScale(0.9);this.tweens.add({targets:star,scale:0.95,yoyo:true,repeat:-1,duration:1400,ease:'Sine.inOut'});
-  this.add.image(cx,cy,'dash').setTint(C.cyan).setAlpha(0.35).setScale(1.7);
+ create(){const W=this.scale.width,H=this.scale.height,S=this.registry.get('save'),d=S.d;ensureMissions(d);
+  // daily streak bookkeeping
+  const td=today(),yd=new Date(Date.now()-864e5).toISOString().slice(0,10);let bonus=0;
+  if(d.lastDay!==td){d.streak=d.lastDay===yd?(d.streak||0)+1:1;d.lastDay=td;bonus=Math.min(7,d.streak)*25;d.dust+=bonus;}S.save();
+  this.bg=background(this);
+  // ---- vertical layout, anchored from bottom so it fits 640..900 tall ----
+  const PAD=16,panH=Math.min(150,Math.max(126,H*0.17)),panY=H-PAD-panH/2,panTop=panY-panH/2;
+  const rowY=panTop-20-29,playY=rowY-29-18-38,infoY=playY-38-24,titleY=infoY-66;
+  const heroTop=104,heroBot=titleY-44,k=Phaser.Math.Clamp((heroBot-heroTop)/250,0.5,1.05),cx=W/2,cy=(heroTop+heroBot)/2;
+  // hero: orbit demo
+  const halo=this.add.image(cx,cy,'glow').setTint(C.vio).setBlendMode('ADD').setScale(3.4*k).setAlpha(0.4);
+  this.tweens.add({targets:halo,alpha:0.6,scale:3.7*k,duration:2600,yoyo:true,repeat:-1,ease:'Sine.inOut'});
+  const ring=this.add.image(cx,cy,'dash').setTint(C.cyan).setAlpha(0.28).setScale(1.75*k,0.75*k);this.tweens.add({targets:ring,rotation:Math.PI*2,duration:60000,repeat:-1});
+  this.add.image(cx,cy,'glow').setTint(C.cyan).setBlendMode('ADD').setScale(1.5*k).setAlpha(0.5);
+  const star=this.add.image(cx,cy,'node').setTint(C.cyan).setScale(0.9*k);this.tweens.add({targets:star,scale:0.96*k,yoyo:true,repeat:-1,duration:1500,ease:'Sine.inOut'});
+  // small satellite stars (midground depth)
+  [[-0.36,-0.7,C.mag,0.28],[0.38,0.55,C.vio,0.22],[0.42,-0.9,C.cyan,0.16]].forEach(([fx,fy,col,sc],i)=>{const x=cx+fx*W,y=cy+fy*110*k;
+   this.add.image(x,y,'glow').setTint(col).setBlendMode('ADD').setScale(sc*2.6).setAlpha(0.5);const n=this.add.image(x,y,'node').setTint(col).setScale(sc);
+   this.tweens.add({targets:n,y:y-6,duration:2200+i*500,yoyo:true,repeat:-1,ease:'Sine.inOut'});});
   const skin=SKINS.find(s=>s.id===d.skin)||SKINS[0];
-  this.demo={a:0,cx,cy,r:104,trail:[],skin};this.trailG=this.add.graphics().setBlendMode('ADD');
-  this.cg=this.add.image(0,0,'glow').setTint(skin.a).setBlendMode('ADD').setScale(0.7);this.cc=this.add.image(0,0,'dot').setScale(0.7);
-  const title=txt(this,W/2,H*0.47,'ORBITUNE',50,C.text,{glow:C.mag,blur:22,spacing:8});
-  txt(this,W/2,H*0.47+38,'every catch is a note',15,C.dim,{weight:'600',spacing:3});
-  title.setScale(0.6).setAlpha(0);this.tweens.add({targets:title,scale:1,alpha:1,duration:700,ease:'Back.out'});
-  // top bar
-  this.add.image(30,36,'prism').setTint(C.gold).setScale(0.22);this.dustT=txt(this,48,36,d.dust.toLocaleString(),20,C.gold,{ox:0});
-  txt(this,W-70,36,'BEST '+d.best.toLocaleString(),14,C.dim,{ox:1});
-  muteBtn(this,W-32,36);
-  const r=rankOf(d.xp||0),xp=d.xp||0,lo=r?rankNext(r-1):0,hi=rankNext(r);txt(this,W/2,76,'RANK '+(r+1)+' · '+RANKS[r].toUpperCase(),12,C.cyan,{spacing:2});
-  const rg=this.add.graphics();rg.fillStyle(C.ink,1);rg.fillRoundedRect(W/2-80,90,160,5,2);rg.fillStyle(C.cyan,1);rg.fillRoundedRect(W/2-80,90,Math.max(5,160*Math.min(1,(xp-lo)/(hi-lo))),5,2);
-  // daily streak
-  const td=today(),yd=new Date(Date.now()-864e5).toISOString().slice(0,10);if(d.lastDay!==td){d.streak=d.lastDay===yd?(d.streak||0)+1:1;d.lastDay=td;const bonus=Math.min(7,d.streak)*25;d.dust+=bonus;S.save();this.dustT.setText(d.dust.toLocaleString());
-   this.time.delayedCall(700,()=>{const t=txt(this,W/2,H*0.53,'DAY '+d.streak+' STREAK  +'+bonus+' dust',16,C.gold,{glow:true});t.setScale(0);this.tweens.add({targets:t,scale:1,duration:400,ease:'Back.out'});this.tweens.add({targets:t,alpha:0,delay:2600,duration:600});Sfx.gold();});}
-  const by=H*0.62;
-  const play=button(this,W/2,by,250,70,'PLAY',C.gold,()=>this.go({}),{size:30,solid:true,breathe:true,spacing:6,sub:d.bestSector>0?'from sector 1':null});
-  // checkpoint chips
-  this.startSector=0;
-  if(d.bestSector>=2){const n=Math.min(d.bestSector,5);const chips=[];for(let i=0;i<n;i++){const ch=button(this,W/2+(i-(n-1)/2)*48,by+52,40,30,''+(i+1),i?C.vio:C.gold,()=>{this.startSector=i;play.sub.setText('from sector '+(i+1));chips.forEach((k,j)=>k.setAlpha(j===i?1:0.45));},{size:15});ch.setAlpha(i?0.45:1);chips.push(ch);}}
-  const dd=d.daily.date===today();
-  button(this,W/2-66,by+108,122,54,'DAILY',C.cyan,()=>this.go({daily:true}),{size:18,sub:dd?'best '+d.daily.best:'new seed!'});
-  button(this,W/2+66,by+108,122,54,'HANGAR',C.mag,()=>this.scene.start('Hangar'),{size:18,sub:'upgrades & trails'});
-  // missions
-  const my=Math.min(by+190,H-150);panel(this,W/2,my+38,W-36,128,C.vio,0.7);
-  txt(this,30,my-12,'CONSTELLATION ORDERS',12,C.vio,{ox:0,spacing:2});
-  d.missions.forEach((m,i)=>{const y=my+14+i*34;txt(this,30,y,m.text,14,C.text,{ox:0,weight:'600'});
-   txt(this,W-30,y,'+'+m.reward,14,C.gold,{ox:1});});
-  if(!d.tut)txt(this,W/2,H-12,'tip: release to launch · hold to aim',12,C.dim,{weight:'600'});
+  this.demo={a:0,cx,cy,rx:108*k,ry:46*k,trail:[],skin,star};this.trailG=this.add.graphics().setBlendMode('ADD');
+  this.cg=this.add.image(0,0,'glow').setTint(skin.dark?C.mag:skin.a).setBlendMode('ADD').setScale(0.75);this.cc=this.add.image(0,0,'dot').setScale(0.7);
+  // title
+  const title=txt(this,W/2,titleY,'ORBITUNE',48,C.text,{glow:C.mag,blur:22,spacing:8});
+  const sub=txt(this,W/2,titleY+33,'every catch is a note',14,C.dim,{weight:'600',spacing:3});
+  title.setScale(0.7).setAlpha(0);this.tweens.add({targets:title,scale:1,alpha:1,duration:700,ease:'Back.out'});
+  this.tweens.add({targets:title,alpha:0.88,duration:1800,yoyo:true,repeat:-1,delay:800,ease:'Sine.inOut'});
+  // ---- top bar: dust pill (reward=gold) | rank | mute ----
+  const tb=this.add.graphics();const pill=(x,y,w,h,col)=>{tb.fillStyle(C.ink,0.75);tb.fillRoundedRect(x,y,w,h,h/2);tb.lineStyle(1.5,col,0.8);tb.strokeRoundedRect(x,y,w,h,h/2);};
+  const dw=Math.max(84,30+String(d.dust.toLocaleString()).length*12);pill(PAD,20,dw,32,C.gold);
+  this.add.image(PAD+18,36,'prism').setTint(C.gold).setScale(0.2);this.dustT=txt(this,PAD+32,36,d.dust.toLocaleString(),17,C.gold,{ox:0});
+  muteBtn(this,W-PAD-20,36);
+  const r=rankOf(d.xp||0),xp=d.xp||0,lo=r?rankNext(r-1):0,hi=rankNext(r),rx=W/2+(dw-48)/2+4;
+  txt(this,rx,30,'RANK '+(r+1),10,C.dim,{spacing:2});txt(this,rx,45,RANKS[r].toUpperCase(),13,C.cyan,{spacing:1.5});
+  const rg=this.add.graphics();rg.fillStyle(C.ink,1);rg.fillRoundedRect(rx-60,56,120,4,2);rg.fillStyle(C.cyan,1);rg.fillRoundedRect(rx-60,56,Math.max(4,120*Phaser.Math.Clamp((xp-lo)/(hi-lo),0,1)),4,2);
+  // chips row: best · streak
+  const chips=[];if(d.best>0)chips.push(['BEST '+d.best.toLocaleString(),C.vio]);if(d.streak>1)chips.push(['DAY '+d.streak+' STREAK',C.mag]);
+  const cw=150;chips.forEach(([t,col],i)=>{const x=W/2+(i-(chips.length-1)/2)*(cw+10);pill(x-cw/2,74,cw,24,col);txt(this,x,86,t,11,col,{spacing:1.5});});
+  // ---- info line above play: sector start selector or tagline ----
+  this.startSector=0;const maxS=Math.min(d.bestSector||0,6);
+  if(maxS>=2){const lab=txt(this,W/2,infoY,'START  ·  SECTOR 1',13,C.cyan,{spacing:2});
+   const set=(v)=>{this.startSector=Phaser.Math.Wrap(v,0,maxS);lab.setText('START  ·  SECTOR '+(this.startSector+1));this.tweens.add({targets:lab,scale:{from:1.15,to:1},duration:200,ease:'Back.out'});};
+   [[-1,'‹',W/2-118],[1,'›',W/2+118]].forEach(([dv,ch,x])=>{const b=button(this,x,infoY,40,30,ch,C.cyan,()=>set(this.startSector+dv),{size:20,spacing:0});});}
+  else txt(this,W/2,infoY,d.tut?'climb the singing sky':'release to launch  ·  hold to aim',12,C.dim,{weight:'600',spacing:2});
+  // ---- PLAY hero ----
+  const play=button(this,W/2,playY,264,76,'PLAY',C.cyan,()=>this.go({}),{size:32,solid:true,breathe:true,spacing:10});
+  play.setScale(0.8).setAlpha(0);this.tweens.add({targets:play,scale:1,alpha:1,duration:500,delay:200,ease:'Back.out'});
+  this.tweens.add({targets:play.label,scale:1.04,duration:900,yoyo:true,repeat:-1,ease:'Sine.inOut'});
+  // ---- secondary row ----
+  const dd=d.daily.date===td,bw=(W-2*PAD-12)/2;
+  button(this,PAD+bw/2,rowY,bw,58,'DAILY',C.mag,()=>this.go({daily:true}),{size:17,spacing:3,sub:dd?'today best '+d.daily.best.toLocaleString():'new sky today'});
+  button(this,W-PAD-bw/2,rowY,bw,58,'HANGAR',C.vio,()=>this.scene.start('Hangar'),{size:17,spacing:3,sub:'upgrades · trails'});
+  // ---- missions panel ----
+  panel(this,W/2,panY,W-2*PAD,panH,C.vio,0.72);
+  txt(this,PAD+16,panTop+18,'CONSTELLATION ORDERS',11,C.vio,{ox:0,spacing:2});
+  txt(this,W-PAD-16,panTop+18,(d.mDone||0)+' done',11,C.dim,{ox:1,spacing:1});
+  const rowH=(panH-36)/3;
+  d.missions.forEach((m,i)=>{const y=panTop+36+rowH*(i+0.5);const g=this.add.graphics();g.lineStyle(1.5,C.cyan,0.8);g.strokeCircle(PAD+22,y,5);
+   txt(this,PAD+36,y,m.text,13,C.text,{ox:0,weight:'600'});
+   this.add.image(W-PAD-62,y,'prism').setTint(C.gold).setScale(0.13);txt(this,W-PAD-16,y,'+'+m.reward,13,C.gold,{ox:1});
+   if(i<2){g.lineStyle(1,C.vio,0.2);g.lineBetween(PAD+16,y+rowH/2,W-PAD-16,y+rowH/2);}});
   vignette(this);Sfx.intensity=0;
+  if(bonus){this.time.delayedCall(600,()=>{const t=txt(this,W/2,heroBot-6,'DAY '+d.streak+' STREAK  +'+bonus,16,C.gold,{glow:true}).setDepth(999);t.setScale(0);
+   this.tweens.add({targets:t,scale:1,duration:400,ease:'Back.out'});this.tweens.add({targets:t,y:t.y-20,alpha:0,delay:2400,duration:600});Sfx.gold();});}
   this.input.once('pointerdown',()=>Sfx.init());
+  this.cameras.main.fadeIn(250,11,10,31);
  }
  go(o){Sfx.init();this.cameras.main.fadeOut(220,11,10,31);this.time.delayedCall(230,()=>this.scene.start('Game',{...o,start:o.daily?0:this.startSector}));}
- update(t,dt){const D=this.demo;D.a+=dt*0.0028;const x=D.cx+Math.cos(D.a)*D.r,y=D.cy+Math.sin(D.a)*D.r*0.42;this.cg.setPosition(x,y);this.cc.setPosition(x,y);
-  D.trail.push(x,y);if(D.trail.length>44)D.trail.splice(0,2);const g=this.trailG;g.clear();const n=D.trail.length/2;
-  for(let i=1;i<n;i++){const k=i/n;g.lineStyle(10*k,k>0.5?D.skin.a:D.skin.b,0.7*k);g.lineBetween(D.trail[i*2-2],D.trail[i*2-1],D.trail[i*2],D.trail[i*2+1]);}
-  this.bg.update(t*0.02,t);}
+ update(t,dt){const D=this.demo;D.a+=dt*0.0024;const x=D.cx+Math.cos(D.a)*D.rx,y=D.cy+Math.sin(D.a)*D.ry;this.cg.setPosition(x,y);this.cc.setPosition(x,y);
+  const behind=Math.sin(D.a)<0;this.cc.setDepth(behind?0:2);this.cg.setDepth(behind?0:2);D.star.setDepth(1);this.trailG.setDepth(behind?0:2);
+  D.trail.push(x,y);if(D.trail.length>48)D.trail.splice(0,2);const g=this.trailG;g.clear();const n=D.trail.length/2;
+  for(let i=1;i<n;i++){const k=i/n;g.lineStyle(9*k,k>0.5?D.skin.a:D.skin.b,0.7*k);g.lineBetween(D.trail[i*2-2],D.trail[i*2-1],D.trail[i*2],D.trail[i*2+1]);}
+  this.bg.update(t*0.03,t);}
 }
 export class Hangar extends Phaser.Scene{constructor(){super('Hangar')}
  create(){const W=this.scale.width,H=this.scale.height,S=this.registry.get('save'),d=S.d;
