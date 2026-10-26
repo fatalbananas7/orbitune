@@ -21,10 +21,11 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   this.chain=0;this.lastCol=-1;this.hes=0;
   this.bg=background(this,SECTORS[this.sector%6].t);
   this.nodes=[];this.haz=[];this.camY=0;this.genY=H-170;
-  this.constG=this.add.graphics().setBlendMode('ADD').setDepth(1);this.path=[];this.motes=[];this.moteChain=0;
+  this.constG=this.add.graphics().setBlendMode('ADD').setDepth(1);this.full=[];this.motes=[];this.moteChain=0;
   this.bestH=this.daily?(d.daily.date===today()?d.daily.h||0:0):(d.bestH||0);if(this.bestH>200){this.bestLine=this.add.graphics().setDepth(1);const yy=H-170-this.bestH;for(let x=0;x<W;x+=18){this.bestLine.lineStyle(2,C.gold,0.55);this.bestLine.lineBetween(x,yy,x+9,yy);}this.bestTxt=txt(this,W-14,yy-12,'YOUR BEST',11,C.gold,{ox:1,spacing:2}).setDepth(1);this.passedBest=false;}
   this.trailG=this.add.graphics().setBlendMode('ADD').setDepth(5);this.fxG=this.add.graphics().setDepth(6);
   this.burst=this.add.particles(0,0,'dot',{speed:{min:70,max:300},lifespan:{min:350,max:800},scale:{start:0.55,end:0},alpha:{start:1,end:0},blendMode:'ADD',emitting:false}).setDepth(8);
+  this.bigSparks=this.add.particles(0,0,'dot',{speed:{min:220,max:640},lifespan:{min:300,max:750},scale:{start:0.7,end:0},blendMode:'ADD',emitting:false,tint:[C.gold,0xFFFFFF,0xFFE7A0]}).setDepth(9);
   this.sparks=this.add.particles(0,0,'dot',{speed:{min:150,max:520},lifespan:{min:250,max:600},scale:{start:0.35,end:0},blendMode:'ADD',emitting:false,tint:C.gold}).setDepth(8);
   this.dust=this.add.particles(0,0,'dot',{speed:{min:5,max:30},lifespan:700,scale:{start:0.3,end:0},alpha:{start:0.7,end:0},blendMode:'ADD',frequency:28,tint:this.skin.b}).setDepth(4);
   // first node
@@ -34,6 +35,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   this.cc=this.add.image(0,0,'dot').setScale(0.75).setDepth(11);if(this.skin.dark){this.cg.setTint(C.mag);this.cc.setTint(0xE8DDFF);}
   this.dust.startFollow(this.cc);
   this.buildHud();vignette(this);
+  this.odEdge=this.add.image(W/2,H/2,'vignette').setScrollFactor(0).setDisplaySize(W,H).setDepth(901).setTint(C.gold).setBlendMode('ADD').setAlpha(0);
   this.flash=this.add.rectangle(W/2,H/2,W,H,0xffffff,0).setScrollFactor(0).setDepth(950);
   // input
   this.input.addPointer(2);this.press=null;
@@ -79,14 +81,15 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   if(this.tutStep===0){this.tutStep=1;this.clearHint();}}
  latch(n,dist){const c=this.c;const ox=c.x-n.x,oy=c.y-n.y;c.ang=Math.atan2(oy,ox);c.r=Phaser.Math.Clamp(dist,n.r+16,n.r+48);
   const tg=-Math.sin(c.ang)*c.vx+Math.cos(c.ang)*c.vy;c.dir=tg>=0?1:-1;c.state='orbit';c.node=n;n.orbitT=0;this.hes=0;
-  const perfect=dist<n.r+24,R=this.R;this.path.push(n.x,n.y);if(this.path.length>40)this.path.splice(0,2);this.drawConst(n);R.latches++;R.combo++;R.maxCombo=Math.max(R.maxCombo,R.combo);
+  const perfect=dist<n.r+24,R=this.R;R.latches++;R.combo++;R.maxCombo=Math.max(R.maxCombo,R.combo);
   const mult=this.mult();let pts=10,label=null,col=n.type==='gold'?C.gold:COLS[n.col];
   this.fuel=Math.min(100,this.fuel+(perfect?13:6));
-  if(perfect){R.perfects++;pts+=25;label='PERFECT';this.hitstop=0.045;this.focus=Math.min(this.focusMax,this.focus+0.25);this.sparks.explode(18,c.x,c.y);this.cameras.main.shake(90,0.004);}
+  if(perfect){R.perfects++;pts+=25;this.hitstop=0.075;this.focus=Math.min(this.focusMax,this.focus+0.25);this.bigSparks.explode(30,c.x,c.y);this.sparks.explode(16,c.x,c.y);this.cameras.main.shake(110,0.006);this.punch(1.035,140);this.perfectText(c.x,c.y);this.ringWave(c.x,c.y,C.gold,1.8);}
   if(c.b>0){R.banks++;pts+=60;label='BANK SHOT'+(perfect?'!':'');}
   if(n.col===this.lastCol&&n.type!=='gold'){this.chain++;}else this.chain=1;this.lastCol=n.col;
   Sfx.catchNote(R.combo,perfect);
   if(this.chain===3){R.chords++;pts+=150;this.chain=0;this.lastCol=-1;Sfx.chord(R.combo);this.float(n.x,n.y-70,'CHORD',col,26);this.ringWave(n.x,n.y,col,2.4);this.cameras.main.shake(140,0.006);}
+  this.full.push({x:n.x,y:n.y,p:perfect,ch:this.chain===0,col}); if(this.full.length>400)this.full.shift();this.drawConst();
   if(n.type==='gold')this.loot(n);
   const gain=pts*mult;R.score+=gain;this.float(n.x,n.y-n.r-26,'+'+gain,perfect?C.gold:C.text,perfect?22:17);if(label)this.float(n.x,n.y-n.r-50,label,C.gold,15);
   this.burst.particleTint=col;this.burst.explode(perfect?22:12,c.x,c.y);this.ringWave(n.x,n.y,col,1.3);
@@ -97,13 +100,26 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   if(this.tutStep===1&&R.latches>=1){this.tutStep=2;this.hint('HOLD to slow time & aim','swipe while holding to reverse orbit');}
   else if(this.tutStep===2&&R.latches>=6){this.tutStep=3;this.hint('Catch tight to the star','for a PERFECT — fuel & big points');}
   else if(this.tutStep===3&&R.latches>=11){this.tutStep=99;this.clearHint();}}
- drawConst(n){const g=this.constG,P=this.path;g.clear();for(let i=2;i<P.length;i+=2){const k=i/P.length;g.lineStyle(1.5,C.vio,0.12+0.4*k);g.lineBetween(P[i-2],P[i-1],P[i],P[i+1]);g.fillStyle(C.text,0.3+0.5*k);g.fillCircle(P[i],P[i+1],2);}}
+ drawConst(){this.constLines(this.constG,this.full.slice(-24),(p)=>p,1);}
+ constLines(g,P,map,sc){g.clear();for(let i=1;i<P.length;i++){const k=sc<1?1:i/P.length,a=map(P[i-1]),b=map(P[i]);g.lineStyle(7*sc,C.vio,0.07*k);g.lineBetween(a.x,a.y,b.x,b.y);g.lineStyle(1.6,P[i].ch?C.mag:C.vio,0.2+0.5*k);g.lineBetween(a.x,a.y,b.x,b.y);}
+  P.forEach((p,i)=>{const k=sc<1?1:(i+1)/P.length,m=map(p);if(p.ch){g.lineStyle(1.5,C.mag,0.8*k);g.strokeCircle(m.x,m.y,7*Math.max(sc,0.7));}
+   if(p.p){g.fillStyle(C.gold,0.25*k);g.fillCircle(m.x,m.y,7*Math.max(sc,0.6));g.fillStyle(C.gold,k);g.fillCircle(m.x,m.y,3.2);}else{g.fillStyle(C.text,0.35+0.5*k);g.fillCircle(m.x,m.y,2);}});}
+ punch(z,d){const cam=this.cameras.main;this.tweens.killTweensOf(cam);cam.setZoom(z);this.tweens.add({targets:cam,zoom:1,duration:d,ease:'Cubic.out'});}
+ perfectText(x,y){const t=txt(this,x,y-44,'PERFECT',30,C.gold,{glow:C.gold,blur:16,spacing:4}).setDepth(21).setScale(1.8).setAlpha(0);
+  this.tweens.add({targets:t,scale:1,alpha:1,duration:160,ease:'Back.out'});this.tweens.add({targets:t,y:y-80,alpha:0,delay:420,duration:420,ease:'Cubic.in',onComplete:()=>t.destroy()});}
  mult(){return Math.min(5,1+Math.floor(this.R.combo/6))*(this.overdrive?2:1);}
  loot(n){const R=this.R,q=Math.random();R.golds++;Sfx.gold();this.sparks.explode(40,n.x,n.y);this.ringWave(n.x,n.y,C.gold,3);let t;
   if(q<0.03){R.loot+=150;t='JACKPOT +150 dust';this.cameras.main.flash(250,255,201,74);}else if(q<0.55){const v=10+Math.floor(Math.random()*25);R.loot+=v;t='+'+v+' dust';}
   else if(q<0.8){this.fuel=100;this.focus=this.focusMax;t='FULL BURN';}else if(q<0.92&&this.lives<this.maxLives){this.lives++;t='+1 SHIELD';}else{R.score+=500*this.mult();t='+'+500*this.mult()+' STARFALL';}
   this.float(n.x,n.y-95,t,C.gold,20);this.time.delayedCall(60,()=>{if(n.alive){n.type='normal';n.body.setTexture('node').setTint(COLS[n.col]).setScale(n.r/62);n.glow.setTint(COLS[n.col]);n.ring.setTint(COLS[n.col]);}});}
- setOverdrive(on){this.overdrive=on;Sfx.intensity=on?0.95:Math.min(0.7,0.2+this.sector*0.12);if(on){this.banner('OVERDRIVE','x2 score · wider gravity');this.cg.setTint(C.gold);this.cameras.main.flash(200,255,201,74);this.dust.particleTint=C.gold;}else{this.cg.setTint(this.skin.a);this.dust.particleTint=this.skin.b;}}
+ setOverdrive(on){this.overdrive=on;Sfx.intensity=on?0.95:Math.min(0.7,0.2+this.sector*0.12);if(on){this.hitstop=0.16;Sfx.overdrive();this.punch(1.09,520);this.vib([20,30,60]);this.cameras.main.shake(300,0.008);this.cameras.main.flash(260,255,201,74);
+   [0,110,220].forEach((dl,i)=>this.time.delayedCall(dl,()=>this.ringWave(this.c.x,this.c.y,i===1?C.mag:C.gold,4+i*1.5)));this.bigSparks.explode(60,this.c.x,this.c.y);
+   const W=this.W,y=this.H*0.36;const t=txt(this,W/2,y,'OVERDRIVE',46,C.gold,{glow:C.gold,blur:24,spacing:6}).setScrollFactor(0).setDepth(965).setScale(3).setAlpha(0);
+   const t2=txt(this,W/2,y+40,'×2 SCORE  ·  WIDER GRAVITY',13,C.text,{spacing:3}).setScrollFactor(0).setDepth(965).setAlpha(0);
+   this.tweens.add({targets:t,scale:1,alpha:1,duration:380,ease:'Back.out'});this.tweens.add({targets:t2,alpha:1,delay:250,duration:300});
+   this.tweens.add({targets:[t,t2],alpha:0,delay:1500,duration:500,onComplete:()=>{t.destroy();t2.destroy();}});
+   this.odEdge.setAlpha(0);this.tweens.add({targets:this.odEdge,alpha:{from:0.9,to:0.45},duration:600,yoyo:true,repeat:-1,ease:'Sine.inOut'});
+   this.cg.setTint(C.gold);this.dust.particleTint=C.gold;}else{this.tweens.killTweensOf(this.odEdge);this.tweens.add({targets:this.odEdge,alpha:0,duration:300});this.cg.setTint(this.skin.dark?C.mag:this.skin.a);this.dust.particleTint=this.skin.b;}}
  newSector(){const s=this.sector;Sfx.key=[0,2,-3,5,-2,7][s%6];Sfx.sector();this.bg.neb.setTint(SECTORS[s%6].t);this.banner(s<6?SECTORS[s].n:SECTORS[5].n+' '+(s-4),'SECTOR '+(s+1));
   this.fuel=Math.min(100,this.fuel+30);this.R.score+=250*(s);this.cameras.main.flash(300,155,123,255);if(!this.overdrive)Sfx.intensity=Math.min(0.7,0.2+s*0.12);}
  damage(why){if(this.inv>0||this.over)return;this.lives--;this.vib([30,40,30]);Sfx.hit();this.cameras.main.shake(260,0.012);this.hitstop=0.07;
@@ -199,21 +215,40 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   d.tut=true;S.save();
   this.time.delayedCall(900,()=>this.results(why,dust,newBest,done));}
  results(why,dust,newBest,done){const W=this.W,H=this.H,R=this.R,d=this.d;const L=[];const z=o=>{o.setScrollFactor(0).setDepth(1200);L.push(o);return o;};
-  z(this.add.rectangle(W/2,H/2,W,H,C.void,0.72));const ph=380+done.length*30;const p=z(panel(this,W/2,H*0.46,W-40,ph,C.mag,0.92));
-  const top=H*0.46-ph/2;
-  z(txt(this,W/2,top+34,why==='fuel'?'BURNED OUT':why==='shard'?'SHATTERED':'LOST IN THE DARK',14,C.dim,{spacing:4}));
-  const sc=z(txt(this,W/2,top+82,'0',52,C.text,{glow:C.vio,blur:18}));const o={v:0};this.tweens.add({targets:o,v:R.score,duration:900,ease:'Cubic.out',onUpdate:()=>sc.setText(Math.round(o.v).toLocaleString())});
-  if(newBest){const nb=z(txt(this,W/2,top+124,'★ NEW BEST ★',18,C.gold,{glow:true}));nb.setScale(0);this.tweens.add({targets:nb,scale:1,delay:900,duration:400,ease:'Back.out',onStart:()=>{Sfx.gold();this.sparks.explode(40,W/2,this.camY+top+124);}});}
-  else z(txt(this,W/2,top+124,'best '+d.best.toLocaleString(),14,C.dim));
-  const st=[['catches',R.latches],['perfect',R.perfects],['max combo',R.maxCombo],['sector',this.sector+1]];
-  st.forEach(([k,v],i)=>{const x=W/2+(i-1.5)*((W-70)/4);z(txt(this,x,top+170,''+v,22,C.cyan));z(txt(this,x,top+194,k,10,C.dim,{spacing:1}));});
-  z(this.add.image(W/2-50,top+236,'prism').setTint(C.gold).setScale(0.22));z(txt(this,W/2-34,top+236,'+'+dust+' dust',20,C.gold,{ox:0}));
-  if(this.rankUp){const t=z(txt(this,W/2,top+ph+80,'RANK UP → '+RANKS[this.rankUp].toUpperCase()+'  +'+this.rankUp*40,15,C.cyan,{glow:true}));t.setScale(0);this.tweens.add({targets:t,scale:1,delay:1400,duration:450,ease:'Back.out',onStart:()=>Sfx.sector()});}
-  done.forEach((m,i)=>{const t=z(txt(this,W/2,top+272+i*30,'✓ '+m.text+'  +'+m.reward,13,C.gold,{weight:'600'}));t.setAlpha(0);this.tweens.add({targets:t,alpha:1,delay:1100+i*250,duration:300,onStart:()=>Sfx.buy()});});
-  // next-unlock teaser
+  z(this.add.rectangle(W/2,H/2,W,H,C.void,0.78));
   const goals=[...SKINS.filter(s=>!d.skins.includes(s.id)).map(s=>({n:s.name+' trail',c:s.cost})),...UPGRADES.filter(u=>d.up[u.id]<u.max).map(u=>({n:u.name,c:upCost(u.id,d.up[u.id])}))].sort((a,b)=>a.c-b.c);
-  const g=goals[0];if(g)z(txt(this,W/2,top+ph-118,d.dust>=g.c?`You can afford ${g.n}! → Hangar`:`${(g.c-d.dust)} dust to ${g.n}`,13,d.dust>=g.c?C.gold:C.vio,{weight:'600'}));
-  const rb=z(button(this,W/2,top+ph-70,230,62,'AGAIN',C.gold,()=>{this.cameras.main.fadeOut(160,11,10,31);this.time.delayedCall(170,()=>this.scene.restart({daily:this.daily,start:0}));},{size:26,solid:true,breathe:true,spacing:4}));
-  z(button(this,W/2-60,top+ph+30,110,44,'MENU',C.vio,()=>this.scene.start('Menu'),{size:15}));z(button(this,W/2+60,top+ph+30,110,44,'HANGAR',C.mag,()=>this.scene.start('Hangar'),{size:15}));
-  L.forEach((o,i)=>{if(o.alpha===0)return;const a=o.alpha;o.setAlpha(0);this.tweens.add({targets:o,alpha:a,duration:300,delay:i*25});});}
+  const extra=done.length*24+(this.rankUp?26:0)+(goals[0]?24:0);let cH=Phaser.Math.Clamp(H-30-(396+extra)-70,70,140);
+  cH=Math.min(cH,120);const ph=376+extra+cH,top=Math.max(12,(H-ph-60)/2);const pg=z(this.add.graphics());let y=top+28;
+  z(txt(this,W/2,y,why==='fuel'?'BURNED OUT':why==='shard'?'SHATTERED':'LOST IN THE DARK',13,C.dim,{spacing:4}));y+=44;
+  const sc=z(txt(this,W/2,y,'0',50,C.text,{glow:C.vio,blur:18}));const o={v:0};this.tweens.add({targets:o,v:R.score,duration:900,ease:'Cubic.out',onUpdate:()=>sc.setText(Math.round(o.v).toLocaleString())});y+=40;
+  if(newBest){const nb=z(txt(this,W/2,y,'★ NEW BEST ★',17,C.gold,{glow:true}));nb.setScale(0);this.tweens.add({targets:nb,scale:1,delay:900,duration:400,ease:'Back.out',onStart:()=>{Sfx.gold();this.bigSparks.explode(40,W/2,this.camY+y);}});}
+  else z(txt(this,W/2,y,'best '+d.best.toLocaleString(),13,C.dim));y+=38;
+  const st=[['catches',R.latches,C.cyan],['perfect',R.perfects,C.gold],['chords',R.chords,C.mag],['max combo',R.maxCombo,C.cyan],['sector',this.sector+1,C.vio]];
+  st.forEach(([k,v,col],i)=>{const x=W/2+(i-2)*((W-56)/5);z(txt(this,x,y,''+v,21,col));z(txt(this,x,y+22,k,9,C.dim,{spacing:1}));});y+=48;
+  // the run's constellation
+  const bx=36,bw=W-72,P=this.full;const cg=z(this.add.graphics());cg.fillStyle(C.void,0.6);cg.fillRoundedRect(bx-8,y,bw+16,cH,14);cg.lineStyle(1,C.vio,0.35);cg.strokeRoundedRect(bx-8,y,bw+16,cH,14);
+  z(txt(this,bx,y+12,'YOUR CONSTELLATION',9,C.vio,{ox:0,spacing:2}));z(txt(this,bx+bw,y+12,'✦ perfect   ◯ chord',9,C.dim,{ox:1,spacing:1}));
+  if(P.length>1){const xs=P.map(p=>p.x),ys=P.map(p=>p.y),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+   const sx=bw/Math.max(1,y1-y0),ih=cH-40,sy=ih/Math.max(60,x1-x0),oy=y+28+(ih-(x1-x0)*sy)/2;
+   const g=z(this.add.graphics().setBlendMode('ADD'));const map=(p)=>({x:bx+(y1-p.y)*sx,y:oy+(p.x-x0)*sy});
+   const prog={n:1};this.tweens.add({targets:prog,n:P.length,duration:Math.min(1600,P.length*40),delay:300,onUpdate:()=>this.constLines(g,P.slice(0,Math.ceil(prog.n)),map,0.6)});}
+  else z(txt(this,W/2,y+cH/2+6,'no stars caught',12,C.dim));
+  y+=cH+24;
+  z(this.add.image(W/2-48,y,'prism').setTint(C.gold).setScale(0.2));z(txt(this,W/2-32,y,'+'+dust+' dust',19,C.gold,{ox:0}));y+=28;
+  done.forEach((m,i)=>{const t=z(txt(this,W/2,y,'✓ '+m.text+'  +'+m.reward,12,C.gold,{weight:'600'}));t.setAlpha(0);this.tweens.add({targets:t,alpha:1,delay:1100+i*250,duration:300,onStart:()=>Sfx.buy()});y+=24;});
+  if(this.rankUp){const t=z(txt(this,W/2,y,'RANK UP → '+RANKS[this.rankUp].toUpperCase()+'  +'+this.rankUp*40,14,C.cyan,{glow:true}));t.setScale(0);this.tweens.add({targets:t,scale:1,delay:1400,duration:450,ease:'Back.out',onStart:()=>Sfx.sector()});y+=26;}
+  const g0=goals[0];if(g0){z(txt(this,W/2,y,d.dust>=g0.c?`You can afford ${g0.n}! → Hangar`:`${(g0.c-d.dust)} dust to ${g0.n}`,12,d.dust>=g0.c?C.gold:C.vio,{weight:'600'}));y+=24;}
+  y+=12;const ph2=y+62+18-top;pg.fillStyle(C.ink,0.94);pg.fillRoundedRect(14,top,W-28,ph2,22);pg.lineStyle(2,C.vio,0.7);pg.strokeRoundedRect(14,top,W-28,ph2,22);
+  z(button(this,W/2,y+31,236,62,'AGAIN',C.cyan,()=>{this.cameras.main.fadeOut(160,11,10,31);this.time.delayedCall(170,()=>this.scene.restart({daily:this.daily,start:this.startSector}));},{size:26,solid:true,breathe:true,spacing:6}));
+  const by=top+ph2+34,bw2=(W-28-20)/3;
+  z(button(this,14+bw2/2,by,bw2,44,'MENU',C.vio,()=>this.scene.start('Menu'),{size:14,spacing:2}));
+  z(button(this,W/2,by,bw2,44,'SHARE',C.cyan,()=>this.share(),{size:14,spacing:2}));
+  z(button(this,W-14-bw2/2,by,bw2,44,'HANGAR',C.mag,()=>this.scene.start('Hangar'),{size:14,spacing:2}));
+  L.forEach((o,i)=>{if(o.alpha===0)return;const a=o.alpha;o.setAlpha(0);this.tweens.add({targets:o,alpha:a,duration:300,delay:i*20});});}
+ share(){const R=this.R,bars='▁▂▃▄▅▆▇█';const mel=this.full.slice(0,28).map((p,i)=>p.p?'✦':bars[Math.floor((((i+1)%10)/10)*8)]).join('');
+  const url=location.origin+location.pathname;const text=`ORBITUNE${this.daily?' · Daily '+today():''}\n${R.score.toLocaleString()} pts · sector ${this.sector+1} · ${R.latches} catches · ${R.perfects} perfect · ${R.chords} chords\n♪ ${mel}\nBeat my song: ${url}`;
+  const toast=(m)=>{const t=txt(this,this.W/2,this.H-24,m,13,C.cyan).setScrollFactor(0).setDepth(1300);this.tweens.add({targets:t,alpha:0,delay:1400,duration:400,onComplete:()=>t.destroy()});};
+  if(navigator.share){navigator.share({title:'Orbitune',text}).catch(()=>{});}
+  else if(navigator.clipboard){navigator.clipboard.writeText(text).then(()=>toast('Run copied to clipboard'),()=>toast('Could not copy'));}else toast('Sharing not supported');
+  this.lastShare=text;}
 }
