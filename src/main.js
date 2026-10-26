@@ -1,4 +1,4 @@
-import {Boot} from './boot.js';import {Menu,Hangar} from './menu.js';import {Game} from './game.js';import {Save} from './save.js';import {Sfx} from './audio.js';
+import {Boot} from './boot.js?v=2';import {Menu,Hangar} from './menu.js?v=2';import {Game} from './game.js?v=2';import {Save} from './save.js?v=2';import {Sfx} from './audio.js?v=2';
 const W=390,H=Math.round(Math.min(900,Math.max(640,390*innerHeight/innerWidth)));
 const save=Save;save.load();Sfx.muted=!!save.d.muted;
 const game=new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:H,backgroundColor:'#0B0A1F',scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},

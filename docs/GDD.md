@@ -21,7 +21,7 @@ Orbit → read the sky → release (tap) or hold (slow-time aim) → fly → cat
 - **Combo:** +1 per catch, multiplier ×(1+combo/6) capped ×5; fades if you hesitate >2.6 s in orbit (hesitation bar). Combo 12 = OVERDRIVE (×2, wider gravity, gold trail, full music).
 - **Fuel:** drains in orbit (6 → 12+/s over time and sector), less in flight; catches refill.
 - **Focus (hold):** time ×0.3, dotted trajectory preview incl. bank bounce, target highlight; meter refills slowly and on perfects. Swipe or second finger while holding = reverse orbit direction.
-- **Stars by sector:** 1 Nursery (static) · 2 Drift Reef (moving) · 3 Shard Veil (orange shard hazards) · 4 Brittle Choir (fragile stars crumble after 1.5 s) · 5 Pulsar Deep (breathing radius) · 6+ Far Song (all, faster).
+- **Stars by sector:** 1 Nursery (static) · 2 Drift Reef (moving) · 3 Shard Veil (orange shard hazards) · 4 Brittle Choir (fragile stars crumble after 1.5 s) · 5 Event Horizon (EVENT: black holes bend flight + pulsars) · 6+ Far Song (all, faster).
 - **Prism stars (4.5%):** variable-ratio loot: dust, FULL BURN, +1 shield, STARFALL points, rare JACKPOT.
 - **Star motes:** gold triplets between rows — route choice for points/fuel; consecutive motes rise in pitch.
 
@@ -42,3 +42,6 @@ See /STYLE_GUIDE.md (Celestial Ink Neon). Audio: all procedural Web Audio — A-
 
 ## Tech
 Phaser 3.80 (vendored), ES modules, no external requests. 390-wide logical resolution, height adapts to aspect, Scale.FIT. Textures generated on canvas at boot; additive glow sprites instead of shader bloom for mobile perf. localStorage save `orbitune_v1`.
+
+## v2 additions
+Interactive tutorial (practice mode), early-sector forgiveness, shard telegraph/arming, Event Horizon black-hole sector, run share (Web Share/clipboard with melody glyphs), per-sector arpeggio patterns, results constellation. See CHANGELOG v2.

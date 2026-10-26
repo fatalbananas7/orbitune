@@ -1,6 +1,6 @@
-import {C,txt,button,panel,background,vignette,hex} from './ui.js';
-import {Sfx} from './audio.js';
-import {SKINS,UPGRADES,upCost,ensureMissions,newMission} from './save.js';
+import {C,txt,button,panel,background,vignette,hex} from './ui.js?v=2';
+import {Sfx} from './audio.js?v=2';
+import {SKINS,UPGRADES,upCost,ensureMissions,newMission} from './save.js?v=2';
 const SECTORS=[{n:'The Nursery',t:0xFFFFFF},{n:'Drift Reef',t:0x9FFFF4},{n:'Shard Veil',t:0xFFB4A0},{n:'Brittle Choir',t:0xD8C4FF},{n:'Event Horizon',t:0xB08CFF},{n:'The Far Song',t:0xFFE6A0}];
 const COLS=[C.cyan,C.mag,C.vio];
 const PER_SECTOR=18;
@@ -104,6 +104,8 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   if(R.combo===12&&!this.overdrive)this.setOverdrive(true);
   this.secLatch++;if(this.secLatch>=PER_SECTOR&&!this.daily||this.daily&&this.secLatch>=PER_SECTOR){this.secLatch=0;this.sector++;this.newSector();}
   if(this.tutStep===1&&R.latches>=1){this.tutStep=2;this.holdT=0;this.hint('Now HOLD your finger down','time slows · a dotted line shows your path');}
+  else if(this.tutStep===2&&R.latches>=8){this.tutStep=3;this.tutN=R.latches;this.hint('While holding, SLIDE to reverse','flip your orbit direction — then let go');}
+  else if(this.tutStep===3&&R.latches>=this.tutN+4){this.tutStep=4;this.tutN=R.latches;this.hint('Catch TIGHT to a star','skim its rim for a PERFECT');}
   else if(this.tutStep===4&&(perfect||R.latches>=this.tutN+5)){this.tutStep=99;this.hint(perfect?'PERFECT! You\'ve got it':'You\'ve got it','fuel burns faster as you climb — good luck');this.time.delayedCall(2200,()=>{if(this.tutStep===99)this.clearHint();});}}
  drawConst(){this.constLines(this.constG,this.full.slice(-24),(p)=>p,1);}
  constLines(g,P,map,sc){g.clear();for(let i=1;i<P.length;i++){const k=sc<1?1:i/P.length,a=map(P[i-1]),b=map(P[i]);g.lineStyle(7*sc,C.vio,0.07*k);g.lineBetween(a.x,a.y,b.x,b.y);g.lineStyle(1.6,P[i].ch?C.mag:C.vio,0.2+0.5*k);g.lineBetween(a.x,a.y,b.x,b.y);}

@@ -1,7 +1,8 @@
-- Ghost replay of your best run's path.
+- Ghost replay of your best run's path (best-height line covers part of this).
 - Melody export: save/share the tune your run composed.
-- Boss "Black Hole" sectors that pull you off course.
 - Online daily leaderboard (needs a backend).
 - Sector-specific music themes and instrument unlocks as cosmetics.
 - Colour-blind palette toggle (shapes already differ for hazards).
 - Offline service worker caching.
+- Shareable seed links that recreate the exact sky a friend played.
+- Audible melody playback of the shared run.

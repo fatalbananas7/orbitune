@@ -3,6 +3,7 @@ const secs=+process.argv[2]||40, tag=process.argv[3]||'t';
 const b=await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader']});
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,hasTouch:true,isMobile:true});
 const p=await ctx.newPage();const errs=[];p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});p.on('pageerror',e=>errs.push(e.message));
+if(process.env.TUT)await p.addInitScript(()=>{if(!localStorage.getItem('orbitune_v1'))localStorage.setItem('orbitune_v1',JSON.stringify({tut:true}))});
 await p.goto('http://localhost:8123/index.html');await p.waitForTimeout(1500);
 await p.screenshot({path:`shots/${tag}-menu.png`});
 // canvas mapping

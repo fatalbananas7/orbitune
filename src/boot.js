@@ -1,4 +1,4 @@
-import {C} from './ui.js';
+import {C} from './ui.js?v=2';
 export class Boot extends Phaser.Scene{constructor(){super('Boot')}
  create(){const W=this.scale.width,H=this.scale.height,tx=this.textures;
   const cv=(k,w,h,fn)=>{const t=tx.createCanvas(k,w,h);fn(t.getContext(),w,h);t.refresh();};

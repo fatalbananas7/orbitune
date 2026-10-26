@@ -1,7 +1,7 @@
-import {C,txt,button,panel,muteBtn,background,vignette,hex} from './ui.js';
-import {Sfx} from './audio.js';
-import {RANKS,rankOf,rankNext} from './game.js';
-import {SKINS,UPGRADES,upCost,ensureMissions} from './save.js';
+import {C,txt,button,panel,muteBtn,background,vignette,hex} from './ui.js?v=2';
+import {Sfx} from './audio.js?v=2';
+import {RANKS,rankOf,rankNext} from './game.js?v=2';
+import {SKINS,UPGRADES,upCost,ensureMissions} from './save.js?v=2';
 const today=()=>new Date().toISOString().slice(0,10);
 export class Menu extends Phaser.Scene{constructor(){super('Menu')}
  create(){const W=this.scale.width,H=this.scale.height,S=this.registry.get('save'),d=S.d;ensureMissions(d);
