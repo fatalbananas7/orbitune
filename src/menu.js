@@ -1,8 +1,8 @@
-import {R,LW,LH,TS,setupCam} from './dims.js?v=3';
-import {C,txt,button,panel,muteBtn,background,vignette,hex} from './ui.js?v=3';
-import {Sfx} from './audio.js?v=3';
-import {RANKS,rankOf,rankNext} from './game.js?v=3';
-import {SKINS,UPGRADES,upCost,ensureMissions} from './save.js?v=3';
+import {R,LW,LH,TS,setupCam} from './dims.js?v=4';
+import {C,txt,button,panel,muteBtn,background,vignette,hex} from './ui.js?v=4';
+import {Sfx} from './audio.js?v=4';
+import {RANKS,rankOf,rankNext} from './game.js?v=4';
+import {SKINS,UPGRADES,upCost,ensureMissions} from './save.js?v=4';
 const today=()=>new Date().toISOString().slice(0,10);
 export class Menu extends Phaser.Scene{constructor(){super('Menu')}
  create(){setupCam(this);const W=LW,H=LH,S=this.registry.get('save'),d=S.d;ensureMissions(d);

@@ -45,3 +45,6 @@ Phaser 3.80 (vendored), ES modules, no external requests. 390-wide logical resol
 
 ## v2 additions
 Interactive tutorial (practice mode), early-sector forgiveness, shard telegraph/arming, Event Horizon black-hole sector, run share (Web Share/clipboard with melody glyphs), per-sector arpeggio patterns, results constellation. See CHANGELOG v2.
+
+### Ghost of personal best (v4)
+Normal runs: gold pace-marker ghost on the right edge following the best run's height over time. Daily: cyan ghost replays the day's best path (seeded world). Opacity is about 0.3. Not shown during the tutorial or before a best exists. Disabled if `save.ghost === false` (there is no settings screen yet).

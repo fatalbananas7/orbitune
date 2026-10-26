@@ -79,3 +79,12 @@ Concept, style guide, procedural textures, Menu/Hangar/Game scenes, orbit/launch
 - Glow, vignette and nebula gradients: smoother 24-stop falloff + alpha dithering to remove banding. antialias on, pixelArt/roundPixels off, LINEAR filtering. No CSS image-rendering.
 - Adaptive quality: if the first ~240 frames of a run average >26 ms, render scale is reduced 25% (min 0.5) from the next launch (localStorage `orbitune_q`).
 - Cache-bust ?v=3.
+
+## v4 — Clean menu + Ghost of personal best
+- Menu: the "huge diamonds / giant foreground comet" frames were a v3 texture-sizing bug (supersampled frames set up with `setTrim`; Phaser's WebGL batcher draws quads at `cutWidth`, so every image texture rendered 3x). Replaced by `setSize` + full-source UVs. Verified with a 40-frame time-lapse at 390x844 DPR 3: icons stay 12–19 px the whole time.
+- Ghost of personal best (`src/ghost.js`, localStorage `orbitune_ghost`, separate from the main save):
+  - Normal runs use `Math.random` worlds, so a replayed path would be meaningless. The ghost is a **pace marker**: a faint gold comet on the right edge climbing at your best run's height-vs-time curve, with a short trail and a "BEST" tag when it's level with you. Only shown for runs starting at sector 1 (the same runs that set the YOUR BEST line).
+  - Daily runs are seeded, so the star layout matches. The ghost **replays your path** for that day in dim cyan. It's stored per day, and older days are discarded.
+  - Samples are quantised ints every 100 ms, capped at 5 minutes. A ghost is only overwritten when the run's height beats the stored ghost. Corrupt, old or malformed data is ignored.
+  - Hidden during the tutorial and when no best exists. Visual only (no collisions). Fixed cost: 4 display objects.
+- Cache-bust ?v=4.

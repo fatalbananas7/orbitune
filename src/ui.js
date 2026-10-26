@@ -1,5 +1,5 @@
-import {R,LW,LH,TS,setupCam} from './dims.js?v=3';
-import {Sfx} from './audio.js?v=3';
+import {R,LW,LH,TS,setupCam} from './dims.js?v=4';
+import {Sfx} from './audio.js?v=4';
 export const FONT='"Segoe UI",Roboto,"Helvetica Neue",system-ui,sans-serif';
 export const C={void:0x0B0A1F,ink:0x1A1640,dusk:0x3B1E6E,cyan:0x3EF2E0,mag:0xFF4FD8,vio:0x9B7BFF,gold:0xFFC94A,danger:0xFF5A3C,text:0xF4F1FF,dim:0x8E87C9};
 export const hex=(n)=>'#'+n.toString(16).padStart(6,'0');

@@ -1,7 +1,8 @@
-import {R,LW,LH,TS,setupCam} from './dims.js?v=3';
-import {C,txt,button,panel,background,vignette,hex} from './ui.js?v=3';
-import {Sfx} from './audio.js?v=3';
-import {SKINS,UPGRADES,upCost,ensureMissions,newMission} from './save.js?v=3';
+import {R,LW,LH,TS,setupCam} from './dims.js?v=4';
+import {Ghost} from './ghost.js?v=4';
+import {C,txt,button,panel,background,vignette,hex} from './ui.js?v=4';
+import {Sfx} from './audio.js?v=4';
+import {SKINS,UPGRADES,upCost,ensureMissions,newMission} from './save.js?v=4';
 const SECTORS=[{n:'The Nursery',t:0xFFFFFF},{n:'Drift Reef',t:0x9FFFF4},{n:'Shard Veil',t:0xFFB4A0},{n:'Brittle Choir',t:0xD8C4FF},{n:'Event Horizon',t:0xB08CFF},{n:'The Far Song',t:0xFFE6A0}];
 const COLS=[C.cyan,C.mag,C.vio];
 const PER_SECTOR=18;
@@ -25,6 +26,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   this.nodes=[];this.haz=[];this.holes=[];this.camY=0;this.genY=H-170;
   this.constG=this.add.graphics().setBlendMode('ADD').setDepth(1);this.full=[];this.motes=[];this.moteChain=0;
   this.bestH=this.daily?(d.daily.date===today()?d.daily.h||0:0):(d.bestH||0);if(this.bestH>200){this.bestLine=this.add.graphics().setDepth(1);const yy=H-170-this.bestH;for(let x=0;x<W;x+=18){this.bestLine.lineStyle(2,C.gold,0.55);this.bestLine.lineBetween(x,yy,x+9,yy);}this.bestTxt=txt(this,W-14,yy-12,'YOUR BEST',11,C.gold,{ox:1,spacing:2}).setDepth(1);this.passedBest=false;}
+  this.ghostInit();
   this.trailG=this.add.graphics().setBlendMode('ADD').setDepth(5);this.fxG=this.add.graphics().setDepth(6);
   this.burst=this.add.particles(0,0,'dot',{speed:{min:70,max:300},lifespan:{min:350,max:800},scale:{start:0.55,end:0},alpha:{start:1,end:0},blendMode:'ADD',emitting:false}).setDepth(8);
   this.bigSparks=this.add.particles(0,0,'dot',{speed:{min:220,max:640},lifespan:{min:300,max:750},scale:{start:0.7,end:0},blendMode:'ADD',emitting:false,tint:[C.gold,0xFFFFFF,0xFFE7A0]}).setDepth(9);
@@ -167,6 +169,30 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
    z(button(this,W/2,H*0.5,220,60,'RESUME',C.gold,()=>this.pause(false),{size:22,solid:true}));z(button(this,W/2,H*0.5+76,220,52,'MENU',C.vio,()=>this.scene.start('Menu'),{size:18}));}
   else{(this.pauseO||[]).forEach(o=>o.destroy());}}
  // ---------- loop ----------
+ // ---------- ghost of personal best ----------
+ ghostInit(){const d=this.d;this.gRec=[];this.gData=Ghost.load();this.gk=null;
+  const g=this.gData,on=d.tut&&d.ghost!==false;
+  if(on&&this.daily&&g.d&&g.d.date===today())this.gk='d';else if(on&&!this.daily&&!this.startSector&&g.n&&g.n.h>200)this.gk='n';
+  if(!this.gk)return;const col=this.gk==='d'?C.cyan:C.gold;this.gCol=col;
+  this.gTrail=this.add.graphics().setBlendMode('ADD').setDepth(2);
+  this.gGlow=this.add.image(0,0,'glow').setTint(col).setBlendMode('ADD').setAlpha(0.3).setScale(0.32).setDepth(2);
+  this.gCore=this.add.image(0,0,'dot').setTint(0xFFFFFF).setAlpha(0.32).setScale(0.42).setDepth(2);
+  this.gLab=txt(this,0,0,'BEST',9,col===C.cyan?C.cyan:C.gold,{spacing:2}).setAlpha(0).setDepth(2);}
+ ghostAt(t){const g=this.gData[this.gk],p=g.p,st=this.gk==='d'?2:1,n=p.length/st,f=t*1000/Ghost.DT;
+  if(f>=n-1)return null;const i=Math.floor(f),k=f-i,a=(j)=>p[Math.min(j,n-1)*st+(st-1)];
+  const h=a(i)+(a(i+1)-a(i))*k,x=st===2?p[i*2]+(p[Math.min(i+1,n-1)*2]-p[i*2])*k:this.W-16;return {x,y:this.H-170-h};}
+ ghostUpdate(time){const R=this.R,c=this.c;
+  if(!this.over&&this.gRec.length<Ghost.MAX*(this.daily?2:1)){const want=Math.floor(R.time*1000/Ghost.DT)+1,st=this.daily?2:1;
+   while(this.gRec.length/st<want&&this.gRec.length<Ghost.MAX*st){if(this.daily)this.gRec.push(Math.round(c.x));this.gRec.push(Math.round(this.H-170-c.y));}}
+  if(!this.gk)return;const gt=this.gTrail;gt.clear();const P=this.ghostAt(R.time);
+  if(!P){if(this.gGlow.visible){this.tweens.add({targets:[this.gGlow,this.gCore,this.gLab],alpha:0,duration:600});this.gGlow.visible=false;this.gCore.setVisible(false);}return;}
+  this.gGlow.setPosition(P.x,P.y).setScale(0.3+Math.sin(time*0.004)*0.03);this.gCore.setPosition(P.x,P.y);
+  for(let i=1;i<=6;i++){const Q=this.ghostAt(Math.max(0,R.time-i*0.08));if(!Q)break;const prev=i===1?P:this.ghostAt(Math.max(0,R.time-(i-1)*0.08));gt.lineStyle(5*(1-i/7),this.gCol,0.22*(1-i/7));gt.lineBetween(prev.x,prev.y,Q.x,Q.y);}
+  const near=Math.abs(P.y-c.y)<170;const lx=Phaser.Math.Clamp(P.x,30,this.W-30);this.gLab.setPosition(this.gk==='n'?P.x-2:lx,P.y-16).setOrigin(this.gk==='n'?1:0.5,0.5);
+  this.gLab.setAlpha(Phaser.Math.Linear(this.gLab.alpha,near?0.55:0,0.1));}
+ ghostSave(h,score){const g=this.gData||Ghost.load();
+  if(this.daily){if(!g.d||g.d.date!==today()||h>g.d.h)g.d={date:today(),h,score,p:this.gRec};}
+  else if(!this.startSector&&this.gRec.length>=10&&h>(g.n?g.n.h:0))g.n={h,score,p:this.gRec};else return;Ghost.save(g);}
  // adaptive quality: if frames are slow at high DPR, lower render scale for next launch
  perf(ms){if(navigator.webdriver||R<=1.5||this._pq)return;this._pf=(this._pf||0)+1;this._pt=(this._pt||0)+ms;
   if(this._pf===240){this._pq=1;if(this._pt/240>26){try{const q=+localStorage.getItem('orbitune_q')||1;localStorage.setItem('orbitune_q',String(Math.max(0.5,q*0.75)));}catch(e){}}}}
@@ -207,6 +233,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   for(const m of this.motes){if(!m.dead&&Math.hypot(m.x-c.x,m.y-c.y)<24&&!this.over){m.dead=true;m.o.destroy();this.moteChain++;R.score+=5*this.mult();this.fuel=Math.min(100,this.fuel+2.5);Sfx.tone(Sfx.scaleHz(10+this.moteChain%8),0.25,'sine',0.07);this.sparks.explode(5,m.x,m.y);R.motes=(R.motes||0)+1;}}
   this.motes=this.motes.filter(m=>{if(!m.dead&&m.y>this.camY+H+100){m.o.destroy();m.dead=true;}return !m.dead;});if(c.state==='orbit')this.moteChain=0;
   this.height=Math.max(this.height||0,H-170-c.y);if(this.bestLine&&!this.passedBest&&this.height>this.bestH){this.passedBest=true;this.banner('PAST YOUR BEST','keep climbing');Sfx.gold();this.cameras.main.flash(200,255,201,74);this.bestTxt.setText('★ NEW BEST');}
+  this.ghostUpdate(time);
   // comet visuals
   const blink=this.inv>0&&(time%160<80);this.cg.setPosition(c.x,c.y).setAlpha(blink?0.3:1).setScale(0.8+(this.overdrive?0.25:0)+Math.sin(time*0.02)*0.05);this.cc.setPosition(c.x,c.y).setAlpha(blink?0.4:1);
   c.trail.push(c.x,c.y);if(c.trail.length>52)c.trail.splice(0,2);const g=this.trailG;g.clear();const nn=c.trail.length/2;
@@ -226,7 +253,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   const d=this.d,R=this.R,S=this.S;const dust=Math.floor(R.score/40)+R.loot;d.dust+=dust;d.runs++;
   const newBest=R.score>d.best;if(newBest)d.best=R.score;d.bestSector=Math.max(d.bestSector,this.daily?d.bestSector:this.sector+1);
   d.stats.perfects+=R.perfects;d.stats.latches+=R.latches;d.stats.golds+=R.golds;d.stats.banks+=R.banks;
-  const h=Math.round(this.height||0);if(this.daily){if(d.daily.date!==today())d.daily={date:today(),best:0,plays:0,h:0};d.daily.plays++;d.daily.best=Math.max(d.daily.best,R.score);d.daily.h=Math.max(d.daily.h||0,h);}else if(this.sector===this.startSector&&this.startSector===0||true){if(!this.startSector)d.bestH=Math.max(d.bestH||0,h);}
+  const h=Math.round(this.height||0);this.ghostSave(h,R.score);if(this.daily){if(d.daily.date!==today())d.daily={date:today(),best:0,plays:0,h:0};d.daily.plays++;d.daily.best=Math.max(d.daily.best,R.score);d.daily.h=Math.max(d.daily.h||0,h);}else if(this.sector===this.startSector&&this.startSector===0||true){if(!this.startSector)d.bestH=Math.max(d.bestH||0,h);}
   const rank0=rankOf(d.xp||0);d.xp=(d.xp||0)+R.latches+R.perfects*2+R.chords*5;const rank1=rankOf(d.xp);this.rankUp=rank1>rank0?rank1:0;if(this.rankUp){d.dust+=rank1*40;}
   if(R.time<35)d.assist=Math.min(1,d.assist+0.12);else if(R.time>80)d.assist=Math.max(0,d.assist-0.08);
   ensureMissions(d);const done=[];const val={latch:R.latches,perfect:R.perfects,combo:R.maxCombo,sector:this.sector+1,score:R.score,chord:R.chords,bank:R.banks,gold:R.golds};
