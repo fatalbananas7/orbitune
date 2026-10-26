@@ -55,3 +55,8 @@ Normal runs: gold pace-marker ghost on the right edge following the best run's h
 **Sector run:** 18 catches clear a sector. Stars: 1 base, 2 at 4+ perfects, 3 at 9+. Clear bonus = (300+150·stars)·sector·(1+0.25·streak). Dust goes to a pot: BANK & EXIT keeps all of it; dying keeps half. CONTINUE is default (auto after 5 s, input locked 0.45 s).
 **Endless:** same clears award score/dust/fuel inline with a short banner, no stop.
 **Charged star:** violet, pulsing ring; ×3 if caught tight; leave within 1.3 s or it collapses.
+
+## v7 modes
+**Sectors (levels):** 14 levels: 1 Nursery (calm) · 2–3 Drift (moving, charged stars from L2) · 4–5 Shard Veil/Storm · 6–7 Brittle Choir/Glass Garden (cracked) · 8 Event Horizon (black holes) · 9 Pulsar Field · 10 Gravity Well · 11 Far Song (all) · 12 Shatterlight · 13 Singularity · 14 Last Chord. Density/size ramp d 0→6.5. Stars: 1, 2 at 4+ perfects, 3 at 9+.
+**Endless:** sector 1 → onward, same hazard ramp as v6, no stops.
+**FX:** all intensity constants in src/fx.js (`FX`), instrumented in `window.__FX.log`.

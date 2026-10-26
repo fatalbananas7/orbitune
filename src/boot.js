@@ -1,5 +1,5 @@
-import {R,LW,LH,TS,setupCam} from './dims.js?v=6';
-import {C} from './ui.js?v=6';
+import {R,LW,LH,TS,setupCam} from './dims.js?v=7';
+import {C} from './ui.js?v=7';
 export class Boot extends Phaser.Scene{constructor(){super('Boot')}
  create(){const W=LW,H=LH,tx=this.textures;
   // supersampled canvas textures: drawn at TS x, frame resized to logical size with full-source UVs so scale math is unchanged

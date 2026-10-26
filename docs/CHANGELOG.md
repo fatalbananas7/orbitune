@@ -1,5 +1,15 @@
 # Changelog
 
+## v7 — Levels + Endless, gentler FX
+- **SECTORS = 14 sequential levels** (src/levels.js). Each level is its own run: 18 catches = clear, death/fuel = fail → RETRY. Fresh fuel/shields each level. Level 1 has no hazards and 20% less fuel drain.
+- **LEVEL SELECT** scene: scrollable list with locked (lock icon, dimmed) / unlocked / completed states, 1–3★ and best score per level, glowing NEXT UP marker. Locked levels can't be started (also clamped in Game).
+- Clear flow: celebration banner → results with stars, "LEVEL N UNLOCKED!", NEXT LEVEL ▸ (hero) / REPLAY / LEVELS / MENU.
+- Rewards: first clear 30+15·i dust; star improvement (12+6·i)·Δ★; replay without improvement 2 dust and half score-dust.
+- v6 continue/bank + dust pot removed. Save: `lv:{u,st,b}`; v6 saves unlock 1+min(sector-run clears,5) levels; stars start fresh.
+- **ENDLESS** always starts at Sector 1 (start picker removed), ghost/best/height unchanged; clear banners never stop the run.
+- Menu: two mode cards (SECTORS · levels, violet / ENDLESS · how far, cyan), per-mode chips, PLAY starts next level in Sectors, LEVEL SELECT pill.
+- **FX centralised in src/fx.js** (flash ×0.72 alpha ×0.85 duration, shake ×0.72/×0.85, punch ×0.72, hit-stop ×0.8, vibration ×0.7). REDUCED FX toggle (×0.5 more) and VIBRATION toggle in HOW IT WORKS; persisted.
+
 ## v6 — Spice + clarity (Zac playtest)
 - Near-miss: CLOSE chime + cyan ring when a flight passes within 6 px of a star rim; GRAZE (+3 fuel) within 16 px of a shard. 0.45 s cooldown, off during hit-stop, Overdrive intro and tutorial.
 - Combo milestones at 5/8/12/18/25/35 (HARMONIC, RESONANCE, Overdrive, SUPERNOVA, CELESTIAL, ASCENDANT) with HUD-space star flourish + arpeggio; one at a time.
