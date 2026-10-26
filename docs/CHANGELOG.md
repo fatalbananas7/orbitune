@@ -1,5 +1,17 @@
 # Changelog
 
+## v6 — Spice + clarity (Zac playtest)
+- Near-miss: CLOSE chime + cyan ring when a flight passes within 6 px of a star rim; GRAZE (+3 fuel) within 16 px of a shard. 0.45 s cooldown, off during hit-stop, Overdrive intro and tutorial.
+- Combo milestones at 5/8/12/18/25/35 (HARMONIC, RESONANCE, Overdrive, SUPERNOVA, CELESTIAL, ASCENDANT) with HUD-space star flourish + arpeggio; one at a time.
+- Results "what if" callout: biggest combo break, cause, sector, tip; marked on the constellation.
+- Charged star (risk/reward): from sector 2, ~8% of stars. Tight catch = ×3 points +20 fuel; must launch within 1.3 s or it collapses (combo break + fling, no shield cost).
+- Bankshot clarity: wall strips glow when the bounce is available, dim + tick mark once used, HUD BANK pip, preview shows exactly one bounce, BANKSHOT +60 +fuel callout.
+- Visible shields: gold pips orbit the comet and sit in the HUD; shatter + sound + text on break; blinking red ring at 0 shields.
+- One-time hints (bank, shield, charged); menu "?" HOW IT WORKS panel.
+- Sector clear celebration: banner, 1–3 stars from perfects, bonus score, dust, +30 fuel, +1 shield on 3 stars, 18-tick progress strip.
+- Modes: ENDLESS CLIMB (no stops, ghost, best height) and SECTOR RUN (clear → CONTINUE ▸ / BANK & EXIT, dust pot, streak multiplier ×1.25 per sector, start picker, best sectors + stars). Switch remembered. Daily uses Endless rules.
+- Save migration: mode/bestSR/seen default in for old saves.
+
 ## Base build (v0.1)
 Concept, style guide, procedural textures, Menu/Hangar/Game scenes, orbit/launch/catch physics, sectors, hazards, fragile/moving/pulsar stars, prism loot, overdrive, fuel, focus aim preview, missions, upgrades, trails, daily seed, adaptive assist, procedural audio, PWA manifest/icons.
 

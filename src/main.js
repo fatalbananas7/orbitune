@@ -1,5 +1,5 @@
-import {Boot} from './boot.js?v=4';import {Menu,Hangar} from './menu.js?v=4';import {Game} from './game.js?v=4';import {Save} from './save.js?v=4';import {Sfx} from './audio.js?v=4';
-import {R,LW,LH} from './dims.js?v=4';
+import {Boot} from './boot.js?v=6';import {Menu,Hangar} from './menu.js?v=6';import {Game} from './game.js?v=6';import {Save} from './save.js?v=6';import {Sfx} from './audio.js?v=6';
+import {R,LW,LH} from './dims.js?v=6';
 const save=Save;save.load();Sfx.muted=!!save.d.muted;
 const game=new Phaser.Game({type:Phaser.AUTO,parent:'game',width:Math.round(LW*R),height:Math.round(LH*R),backgroundColor:'#0B0A1F',scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},
  render:{antialias:true,pixelArt:false,roundPixels:false,mipmapFilter:'',powerPreference:'high-performance'},input:{activePointers:3},fps:{target:60},scene:[Boot,Menu,Hangar,Game],callbacks:{preBoot:(g)=>g.registry.set('save',save)}});

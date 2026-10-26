@@ -48,3 +48,10 @@ Interactive tutorial (practice mode), early-sector forgiveness, shard telegraph/
 
 ### Ghost of personal best (v4)
 Normal runs: gold pace-marker ghost on the right edge following the best run's height over time. Daily: cyan ghost replays the day's best path (seeded world). Opacity is about 0.3. Not shown during the tutorial or before a best exists. Disabled if `save.ghost === false` (there is no settings screen yet).
+
+## v6 rules (plain language)
+**Bankshot:** each flight may bounce off a side wall once. The walls glow while that bounce is available and dim with a mark once it is used; a second wall touch loses the flight. Catching a star after a bounce = BANKSHOT (+60, +5 fuel). The aim preview shows the single bounce.
+**Shields:** gold pips around the comet. A shard hit or a lost flight breaks one. At 0 shields (red ring) the next hit ends the run. Max shields = starting + 1; gold loot or a 3-star sector clear refills one.
+**Sector run:** 18 catches clear a sector. Stars: 1 base, 2 at 4+ perfects, 3 at 9+. Clear bonus = (300+150·stars)·sector·(1+0.25·streak). Dust goes to a pot: BANK & EXIT keeps all of it; dying keeps half. CONTINUE is default (auto after 5 s, input locked 0.45 s).
+**Endless:** same clears award score/dust/fuel inline with a short banner, no stop.
+**Charged star:** violet, pulsing ring; ×3 if caught tight; leave within 1.3 s or it collapses.
