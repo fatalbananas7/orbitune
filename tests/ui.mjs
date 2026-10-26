@@ -1,0 +1,26 @@
+import {chromium} from 'playwright';
+const b=await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader']});
+const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,hasTouch:true,isMobile:true});
+const p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
+await p.addInitScript(()=>{if(!localStorage.getItem('orbitune_v1'))localStorage.setItem('orbitune_v1',JSON.stringify({dust:2000,bestSector:4,tut:true}))});
+await p.goto('http://localhost:8123/index.html');await p.waitForTimeout(1200);
+const box=await p.evaluate(()=>{const r=document.querySelector('canvas').getBoundingClientRect();const g=window.__game;return {x:r.x,y:r.y,s:r.width/g.scale.width,h:g.scale.height}});
+const tap=async(x,y,w=600)=>{await p.touchscreen.tap(box.x+x*box.s,box.y+y*box.s);await p.waitForTimeout(w)};
+const scene=()=>p.evaluate(()=>window.__game.scene.getScenes(true).map(s=>s.sys.settings.key).join());
+await p.screenshot({path:'shots/ui-menu.png'});
+await tap(195+66,box.h*0.62+108);console.log('after hangar tap',await scene());
+await tap(390-70,160);await tap(195,160+4*66+8+66,400);await tap(195+125,160+4*66+8+66+104,400);
+await p.screenshot({path:'shots/ui-hangar.png'});
+await tap(195,box.h-46);console.log('back',await scene());
+await tap(195-66,box.h*0.62+108,1500);console.log('daily',await scene());
+await p.screenshot({path:'shots/ui-daily.png'});
+// hold to focus
+await p.evaluate(()=>{});const cx=box.x+195*box.s,cy=box.y+500*box.s;
+await p.touchscreen.tap(cx,cy);await p.waitForTimeout(1200);
+const cdp=await ctx.newCDPSession(p);
+await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:cx,y:cy}]});await p.waitForTimeout(700);
+await p.screenshot({path:'shots/ui-focus.png'});
+await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await p.waitForTimeout(300);
+await tap(390-30,36);await p.screenshot({path:'shots/ui-pause.png'});
+console.log(await p.evaluate(()=>{const s=window.__game.scene.getScene('Game');return {paused:s.paused,lat:s.R.latches}}),errs);
+await b.close();

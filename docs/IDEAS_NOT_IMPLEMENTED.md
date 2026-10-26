@@ -1,0 +1,7 @@
+- Ghost replay of your best run's path.
+- Melody export: save/share the tune your run composed.
+- Boss "Black Hole" sectors that pull you off course.
+- Online daily leaderboard (needs a backend).
+- Sector-specific music themes and instrument unlocks as cosmetics.
+- Colour-blind palette toggle (shapes already differ for hazards).
+- Offline service worker caching.
