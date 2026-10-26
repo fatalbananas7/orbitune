@@ -1,8 +1,10 @@
 const KEY='orbitune_v1';
-const DEF={dust:0,best:0,bestSector:0,up:{focus:0,catch:0,heart:0,fuel:0},skins:['ember'],skin:'ember',muted:false,missions:[],mDone:0,daily:{date:'',best:0,plays:0},runs:0,stats:{perfects:0,latches:0,golds:0,banks:0},tut:false,assist:0.3,recent:[],mode:'endless',bestSR:{score:0,sector:0,stars:{}},seen:{}};
+const DEF={dust:0,best:0,bestSector:0,up:{focus:0,catch:0,heart:0,fuel:0},skins:['ember'],skin:'ember',muted:false,missions:[],mDone:0,daily:{date:'',best:0,plays:0},runs:0,stats:{perfects:0,latches:0,golds:0,banks:0},tut:false,assist:0.3,recent:[],mode:'endless',bestSR:{score:0,sector:0,stars:{}},seen:{},lv:{u:1,st:{},b:{}},fxr:false,vib:true};
 export const Save={d:null,
  load(){let raw={};try{raw=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
   const d=JSON.parse(JSON.stringify(DEF));for(const k in raw){if(d[k]&&typeof d[k]==='object'&&!Array.isArray(d[k]))Object.assign(d[k],raw[k]);else d[k]=raw[k];}
+  if(!d.lvMig){d.lvMig=1;const c=(d.bestSR&&d.bestSR.sector)||0;d.lv.u=Math.max(d.lv.u||1,1+Math.min(c,5));}
+  d.lv.u=Math.max(1,Math.min(14,d.lv.u|0||1));if(typeof d.lv.st!=='object'||!d.lv.st)d.lv.st={};if(typeof d.lv.b!=='object'||!d.lv.b)d.lv.b={};if(typeof d.mode!=='string')d.mode='endless';
   this.d=d;return d;},
  save(){try{localStorage.setItem(KEY,JSON.stringify(this.d))}catch(e){}},
  reset(){localStorage.removeItem(KEY);this.load();}
