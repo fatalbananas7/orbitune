@@ -4,7 +4,7 @@ const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:
 const p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
 await p.addInitScript(()=>{if(!localStorage.getItem('orbitune_v1'))localStorage.setItem('orbitune_v1',JSON.stringify({dust:2000,bestSector:4,tut:true}))});
 await p.goto('http://localhost:8123/index.html');await p.waitForTimeout(1200);
-const box=await p.evaluate(()=>{const r=document.querySelector('canvas').getBoundingClientRect();const g=window.__game;return {x:r.x,y:r.y,s:r.width/g.scale.width,h:g.scale.height}});
+const box=await p.evaluate(()=>{const r=document.querySelector('canvas').getBoundingClientRect();const g=window.__game;return {x:r.x,y:r.y,s:r.width/window.ORB.LW,h:window.ORB.LH}});
 const tap=async(x,y,w=600)=>{await p.touchscreen.tap(box.x+x*box.s,box.y+y*box.s);await p.waitForTimeout(w)};
 const scene=()=>p.evaluate(()=>window.__game.scene.getScenes(true).map(s=>s.sys.settings.key).join());
 await p.screenshot({path:'shots/ui-menu.png'});

@@ -1,6 +1,7 @@
-import {C,txt,button,panel,background,vignette,hex} from './ui.js?v=2';
-import {Sfx} from './audio.js?v=2';
-import {SKINS,UPGRADES,upCost,ensureMissions,newMission} from './save.js?v=2';
+import {R,LW,LH,TS,setupCam} from './dims.js?v=3';
+import {C,txt,button,panel,background,vignette,hex} from './ui.js?v=3';
+import {Sfx} from './audio.js?v=3';
+import {SKINS,UPGRADES,upCost,ensureMissions,newMission} from './save.js?v=3';
 const SECTORS=[{n:'The Nursery',t:0xFFFFFF},{n:'Drift Reef',t:0x9FFFF4},{n:'Shard Veil',t:0xFFB4A0},{n:'Brittle Choir',t:0xD8C4FF},{n:'Event Horizon',t:0xB08CFF},{n:'The Far Song',t:0xFFE6A0}];
 const COLS=[C.cyan,C.mag,C.vio];
 const PER_SECTOR=18;
@@ -11,7 +12,8 @@ function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1
 const today=()=>new Date().toISOString().slice(0,10);
 export class Game extends Phaser.Scene{constructor(){super('Game')}
  create(data){
-  const W=this.W=this.scale.width,H=this.H=this.scale.height;const S=this.S=this.registry.get('save'),d=this.d=S.d;
+  setupCam(this);
+  const W=this.W=LW,H=this.H=LH;const S=this.S=this.registry.get('save'),d=this.d=S.d;
   this.daily=!!data.daily;this.rng=this.daily?mulberry([...today()].reduce((a,c)=>a*31+c.charCodeAt(0),7)):Math.random;
   this.skin=SKINS.find(s=>s.id===d.skin)||SKINS[0];
   this.catchR=38+6*d.up.catch+12*d.assist;this.drainK=(1-0.09*d.up.fuel)*(1-0.15*d.assist);this.focusMax=1+0.3*d.up.focus;
@@ -39,10 +41,10 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   this.flash=this.add.rectangle(W/2,H/2,W,H,0xffffff,0).setScrollFactor(0).setDepth(950);
   // input
   this.input.addPointer(2);this.press=null;
-  this.input.on('pointerdown',(p)=>{Sfx.init();if(this.over||this.paused)return;if(p.y<70&&p.x>W-70)return;
+  this.input.on('pointerdown',(p)=>{Sfx.init();if(this.over||this.paused)return;if(p.y/R<70&&p.x/R>W-70)return;
    if(this.press&&this.press.id!==p.id){this.reverse();return;}
-   if(this.c.state==='orbit')this.press={id:p.id,t:this.time.now,x:p.x,y:p.y,sw:false};});
-  this.input.on('pointermove',(p)=>{const pr=this.press;if(!pr||pr.id!==p.id||pr.sw)return;if(Math.hypot(p.x-pr.x,p.y-pr.y)>48){pr.sw=true;this.reverse();}});
+   if(this.c.state==='orbit')this.press={id:p.id,t:this.time.now,x:p.x/R,y:p.y/R,sw:false};});
+  this.input.on('pointermove',(p)=>{const pr=this.press;if(!pr||pr.id!==p.id||pr.sw)return;if(Math.hypot(p.x/R-pr.x,p.y/R-pr.y)>48){pr.sw=true;this.reverse();}});
   this.input.on('pointerup',(p)=>{const pr=this.press;if(!pr||pr.id!==p.id)return;this.press=null;if(!pr.sw&&this.c.state==='orbit'&&!this.over&&!this.paused)this.launch();});
   const cancel=()=>{this.press=null;};this.input.on('pointerupoutside',(p)=>{const pr=this.press;if(pr&&pr.id===p.id){this.press=null;if(!pr.sw&&this.c.state==='orbit'&&!this.over&&!this.paused)this.launch();}});
   this.game.canvas.addEventListener('pointercancel',cancel);this.game.canvas.addEventListener('touchcancel',cancel);this.events.once('shutdown',()=>{this.game.canvas.removeEventListener('pointercancel',cancel);this.game.canvas.removeEventListener('touchcancel',cancel);});
@@ -111,7 +113,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
  constLines(g,P,map,sc){g.clear();for(let i=1;i<P.length;i++){const k=sc<1?1:i/P.length,a=map(P[i-1]),b=map(P[i]);g.lineStyle(7*sc,C.vio,0.07*k);g.lineBetween(a.x,a.y,b.x,b.y);g.lineStyle(1.6,P[i].ch?C.mag:C.vio,0.2+0.5*k);g.lineBetween(a.x,a.y,b.x,b.y);}
   P.forEach((p,i)=>{const k=sc<1?1:(i+1)/P.length,m=map(p);if(p.ch){g.lineStyle(1.5,C.mag,0.8*k);g.strokeCircle(m.x,m.y,7*Math.max(sc,0.7));}
    if(p.p){g.fillStyle(C.gold,0.25*k);g.fillCircle(m.x,m.y,7*Math.max(sc,0.6));g.fillStyle(C.gold,k);g.fillCircle(m.x,m.y,3.2);}else{g.fillStyle(C.text,0.35+0.5*k);g.fillCircle(m.x,m.y,2);}});}
- punch(z,d){const cam=this.cameras.main;this.tweens.killTweensOf(cam);cam.setZoom(z);this.tweens.add({targets:cam,zoom:1,duration:d,ease:'Cubic.out'});}
+ punch(z,d){const cam=this.cameras.main;this.tweens.killTweensOf(cam);cam.setZoom(R*z);this.tweens.add({targets:cam,zoom:R,duration:d,ease:'Cubic.out'});}
  perfectText(x,y){const t=txt(this,x,y-44,'PERFECT',30,C.gold,{glow:C.gold,blur:16,spacing:4}).setDepth(21).setScale(1.8).setAlpha(0);
   this.tweens.add({targets:t,scale:1,alpha:1,duration:160,ease:'Back.out'});this.tweens.add({targets:t,y:y-80,alpha:0,delay:420,duration:420,ease:'Cubic.in',onComplete:()=>t.destroy()});}
  crEff(){return this.catchR+(this.overdrive?10:0)+Math.max(0,12-6*this.sector);}
@@ -165,7 +167,10 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
    z(button(this,W/2,H*0.5,220,60,'RESUME',C.gold,()=>this.pause(false),{size:22,solid:true}));z(button(this,W/2,H*0.5+76,220,52,'MENU',C.vio,()=>this.scene.start('Menu'),{size:18}));}
   else{(this.pauseO||[]).forEach(o=>o.destroy());}}
  // ---------- loop ----------
- update(time,dtms){let dt=Math.min(dtms,50)/1000;this.bg.update(this.camY,time);if(this.paused){return;}
+ // adaptive quality: if frames are slow at high DPR, lower render scale for next launch
+ perf(ms){if(navigator.webdriver||R<=1.5||this._pq)return;this._pf=(this._pf||0)+1;this._pt=(this._pt||0)+ms;
+  if(this._pf===240){this._pq=1;if(this._pt/240>26){try{const q=+localStorage.getItem('orbitune_q')||1;localStorage.setItem('orbitune_q',String(Math.max(0.5,q*0.75)));}catch(e){}}}}
+ update(time,dtms){this.perf(dtms);let dt=Math.min(dtms,50)/1000;this.bg.update(this.camY,time);if(this.paused){return;}
   if(this.hitstop>0){this.hitstop-=dt;this.drawHud();return;}
   const c=this.c,W=this.W,H=this.H,R=this.R;
   const holding=this.press&&!this.press.sw&&time-this.press.t>160&&c.state==='orbit'&&this.focus>0&&!this.over;

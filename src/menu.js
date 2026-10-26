@@ -1,10 +1,11 @@
-import {C,txt,button,panel,muteBtn,background,vignette,hex} from './ui.js?v=2';
-import {Sfx} from './audio.js?v=2';
-import {RANKS,rankOf,rankNext} from './game.js?v=2';
-import {SKINS,UPGRADES,upCost,ensureMissions} from './save.js?v=2';
+import {R,LW,LH,TS,setupCam} from './dims.js?v=3';
+import {C,txt,button,panel,muteBtn,background,vignette,hex} from './ui.js?v=3';
+import {Sfx} from './audio.js?v=3';
+import {RANKS,rankOf,rankNext} from './game.js?v=3';
+import {SKINS,UPGRADES,upCost,ensureMissions} from './save.js?v=3';
 const today=()=>new Date().toISOString().slice(0,10);
 export class Menu extends Phaser.Scene{constructor(){super('Menu')}
- create(){const W=this.scale.width,H=this.scale.height,S=this.registry.get('save'),d=S.d;ensureMissions(d);
+ create(){setupCam(this);const W=LW,H=LH,S=this.registry.get('save'),d=S.d;ensureMissions(d);
   // daily streak bookkeeping
   const td=today(),yd=new Date(Date.now()-864e5).toISOString().slice(0,10);let bonus=0;
   if(d.lastDay!==td){d.streak=d.lastDay===yd?(d.streak||0)+1:1;d.lastDay=td;bonus=Math.min(7,d.streak)*25;d.dust+=bonus;}S.save();
@@ -79,7 +80,7 @@ export class Menu extends Phaser.Scene{constructor(){super('Menu')}
   this.bg.update(t*0.03,t);}
 }
 export class Hangar extends Phaser.Scene{constructor(){super('Hangar')}
- create(){const W=this.scale.width,H=this.scale.height,S=this.registry.get('save'),d=S.d;
+ create(){setupCam(this);const W=LW,H=LH,S=this.registry.get('save'),d=S.d;
   this.bg=background(this,0xFFB0F0);
   txt(this,W/2,44,'HANGAR',30,C.text,{glow:C.mag,spacing:6});
   this.add.image(30,86,'prism').setTint(C.gold).setScale(0.22);const dust=txt(this,48,86,d.dust.toLocaleString(),20,C.gold,{ox:0});

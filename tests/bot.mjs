@@ -7,7 +7,7 @@ if(process.env.TUT)await p.addInitScript(()=>{if(!localStorage.getItem('orbitune
 await p.goto('http://localhost:8123/index.html');await p.waitForTimeout(1500);
 await p.screenshot({path:`shots/${tag}-menu.png`});
 // canvas mapping
-const box=await p.evaluate(()=>{const r=document.querySelector('canvas').getBoundingClientRect();const g=window.__game;return {x:r.x,y:r.y,s:r.width/g.scale.width,h:g.scale.height}});
+const box=await p.evaluate(()=>{const r=document.querySelector('canvas').getBoundingClientRect();const g=window.__game;return {x:r.x,y:r.y,s:r.width/window.ORB.LW,h:window.ORB.LH}});
 const tap=async(x,y)=>p.touchscreen.tap(box.x+x*box.s,box.y+y*box.s);
 await tap(195,box.h*0.62);await p.waitForTimeout(800);
 let log=[],runs=0,shot=0,t0=Date.now(),fpsS=[];
