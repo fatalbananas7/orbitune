@@ -1,5 +1,5 @@
 const KEY='orbitune_v1';
-const DEF={dust:0,best:0,bestSector:0,up:{focus:0,catch:0,heart:0,fuel:0},skins:['ember'],skin:'ember',muted:false,missions:[],mDone:0,daily:{date:'',best:0,plays:0},runs:0,stats:{perfects:0,latches:0,golds:0,banks:0},tut:false,assist:0.3,recent:[]};
+const DEF={dust:0,best:0,bestSector:0,up:{focus:0,catch:0,heart:0,fuel:0},skins:['ember'],skin:'ember',muted:false,missions:[],mDone:0,daily:{date:'',best:0,plays:0},runs:0,stats:{perfects:0,latches:0,golds:0,banks:0},tut:false,assist:0.3,recent:[],mode:'endless',bestSR:{score:0,sector:0,stars:{}},seen:{}};
 export const Save={d:null,
  load(){let raw={};try{raw=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
   const d=JSON.parse(JSON.stringify(DEF));for(const k in raw){if(d[k]&&typeof d[k]==='object'&&!Array.isArray(d[k]))Object.assign(d[k],raw[k]);else d[k]=raw[k];}
@@ -31,6 +31,7 @@ const POOL=[
  ['chord','Play {n} chords (3 same colour)',[2,4,7]],
  ['bank','Catch {n} bank shots (bounce first)',[1,3,6]],
  ['gold','Crack {n} prism stars',[1,2,4]],
+ ['charged','Catch {n} charged stars tightly',[1,2,3]],
 ];
 export function newMission(level){const p=POOL[Math.floor(Math.random()*POOL.length)];const t=p[2][Math.min(p[2].length-1,Math.floor(level/3)+Math.floor(Math.random()*2))];return {type:p[0],n:t,text:p[1].replace('{n}',t.toLocaleString()),reward:Math.round(40+t/(p[0]==='score'?60:1)*(p[0]==='score'?1:6)+level*8),prog:0};}
 export function ensureMissions(d){d.missions=(d.missions||[]).filter(m=>m&&m.type);const seen=new Set();d.missions=d.missions.filter(m=>!seen.has(m.type)&&seen.add(m.type));while(d.missions.length<3){let m,k=0;do{m=newMission(d.mDone)}while(seen.has(m.type)&&k++<30);seen.add(m.type);d.missions.push(m);}}
