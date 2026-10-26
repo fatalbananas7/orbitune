@@ -75,7 +75,7 @@ Concept, style guide, procedural textures, Menu/Hangar/Game scenes, orbit/launch
 ## v3 — Sharp rendering on high-DPI phones
 - Root cause: the canvas was a fixed 390-px-wide backing buffer CSS-stretched ~2.7x on phones; text rendered at resolution 1 and thin ring textures were 128 px, so everything was upscaled and soft/pixelated.
 - Canvas now renders at native resolution (LW*R x LH*R, R = min(DPR,3), capped at ~2.7M backing pixels); all cameras zoom by R with origin 0, so layout stays in the same 390-wide logical units at every DPR. Pointer coords divided by R; camera punch is R-relative.
-- Text resolution = max(2, 1.25R). Procedural textures supersampled (2-3x) via trimmed frames; star layers supersampled with tileScale 1/TS.
+- Text resolution = max(2, 1.25R). Procedural textures supersampled (2-3x): canvas drawn at TS x, frame resized to logical size with full-source UVs; star layers supersampled with tileScale 1/TS.
 - Glow, vignette and nebula gradients: smoother 24-stop falloff + alpha dithering to remove banding. antialias on, pixelArt/roundPixels off, LINEAR filtering. No CSS image-rendering.
 - Adaptive quality: if the first ~240 frames of a run average >26 ms, render scale is reduced 25% (min 0.5) from the next launch (localStorage `orbitune_q`).
 - Cache-bust ?v=3.
