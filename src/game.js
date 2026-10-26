@@ -1,8 +1,10 @@
-import {R,LW,LH,TS,setupCam} from './dims.js?v=6';
-import {Ghost} from './ghost.js?v=6';
-import {C,txt,button,panel,background,vignette,hex} from './ui.js?v=6';
-import {Sfx} from './audio.js?v=6';
-import {SKINS,UPGRADES,upCost,ensureMissions,newMission} from './save.js?v=6';
+import {R,LW,LH,TS,setupCam} from './dims.js?v=7';
+import {Ghost} from './ghost.js?v=7';
+import {C,txt,button,panel,background,vignette,hex} from './ui.js?v=7';
+import {Sfx} from './audio.js?v=7';
+import {flash,shake,punchZ,hit as hitS,vib,setFX,fa} from './fx.js?v=7';
+import {LEVELS,prof,lvStars} from './levels.js?v=7';
+import {SKINS,UPGRADES,upCost,ensureMissions,newMission} from './save.js?v=7';
 const SECTORS=[{n:'The Nursery',t:0xFFFFFF},{n:'Drift Reef',t:0x9FFFF4},{n:'Shard Veil',t:0xFFB4A0},{n:'Brittle Choir',t:0xD8C4FF},{n:'Event Horizon',t:0xB08CFF},{n:'The Far Song',t:0xFFE6A0}];
 const COLS=[C.cyan,C.mag,C.vio];
 const PER_SECTOR=18;
@@ -19,10 +21,10 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
  create(data){
   setupCam(this);
   const W=this.W=LW,H=this.H=LH;const S=this.S=this.registry.get('save'),d=this.d=S.d;
-  this.daily=!!data.daily;this.mode=this.daily?'endless':(data.mode==='sector'?'sector':'endless');this.secMode=this.mode==='sector';this.secStreak=0;this.secPerf=0;this.choice=false;this.bankT=null;if(!d.seen)d.seen={};if(!d.bestSR)d.bestSR={score:0,sector:0,stars:{}};this.rng=this.daily?mulberry([...today()].reduce((a,c)=>a*31+c.charCodeAt(0),7)):Math.random;
+  this.daily=!!data.daily;this.mode=this.daily?'endless':(data.mode==='sector'?'sector':'endless');this.secMode=this.mode==='sector';setFX(d);if(!d.lv)d.lv={u:1,st:{},b:{}};this.level=this.secMode?Phaser.Math.Clamp(data.level|0,0,Math.min(LEVELS.length,d.lv.u)-1):-1;this.LV=this.secMode?LEVELS[this.level]:null;this.wasCleared=this.secMode&&!!d.lv.st[this.level];this.lvRes=null;this.secStreak=0;this.secPerf=0;this.choice=false;this.bankT=null;if(!d.seen)d.seen={};if(!d.bestSR)d.bestSR={score:0,sector:0,stars:{}};this.rng=this.daily?mulberry([...today()].reduce((a,c)=>a*31+c.charCodeAt(0),7)):Math.random;
   this.skin=SKINS.find(s=>s.id===d.skin)||SKINS[0];
-  this.catchR=38+6*d.up.catch+12*d.assist;this.drainK=(1-0.09*d.up.fuel)*(1-0.15*d.assist);this.focusMax=1+0.3*d.up.focus;
-  this.sector=this.startSector=this.secMode?(data.start||0):0;this.secLatch=0;this.lives=2+d.up.heart;this.maxLives=this.lives+1;
+  this.catchR=38+6*d.up.catch+12*d.assist;this.drainK=(1-0.09*d.up.fuel)*(1-0.15*d.assist);this.focusMax=1+0.3*d.up.focus;if(this.secMode&&this.level===0)this.drainK*=0.8;
+  this.sector=this.secMode?this.LV.t:0;this.startSector=0;this.P=this.secMode?this.LV:prof(0);this.secLatch=0;this.lives=2+d.up.heart;this.maxLives=this.lives+1;
   this.fuel=100;this.focus=this.focusMax;this.inv=0;this.hitstop=0;this.overdrive=false;this.over=false;this.paused=false;
   this.R={score:0,latches:0,perfects:0,combo:0,maxCombo:0,chords:0,banks:0,golds:0,loot:0,pot:0,clears:0,stars:0,time:0,nm:0,gz:0,charged:0,collapses:0,ml:0};this.nmT=-9;this.odT=-9;this.bigBreak=null;this.peak=null;this.prevCh=false;this.nmLog=window.__nm={star:[],shard:[],fired:{star:0,shard:0}};
   this.chain=0;this.lastCol=-1;this.hes=0;
@@ -59,7 +61,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   this.cameras.main.fadeIn(300,11,10,31);
   Sfx.intensity=0.15;Sfx.setSector(this.sector);
   this.tutStep=d.tut?99:0;if(!d.tut)this.hint('RELEASE to launch',"tap anywhere — fly tangent to your orbit");
-  this.banner(this.daily?'DAILY CONSTELLATION':SECTORS[this.sector%6].n,this.daily?today():'SECTOR '+(this.sector+1));
+  this.banner(this.daily?'DAILY CONSTELLATION':this.secMode?this.LV.n:SECTORS[this.sector%6].n,this.daily?today():this.secMode?'LEVEL '+(this.level+1)+' · '+this.LV.tag:'SECTOR '+(this.sector+1));
  }
  // ---------- world ----------
  makeNode(x,y,col,r,type){const n={x,y,bx:x,r,br:r,col,type,orbitT:0,ph:this.rng()*6.28,amp:30+this.rng()*50,sp:0.6+this.rng()*0.8,alive:true};
@@ -72,18 +74,18 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   n.body.setScale(0);this.tweens.add({targets:n.body,scale:(type==='gold'?r/40:r/62),duration:400,ease:'Back.out'});
   this.nodes.push(n);this.sizeNode(n);return n;}
  sizeNode(n){n.glow.setScale(n.r/64*3).setPosition(n.x,n.y);n.ring.setScale((n.r+this.crEff())/61).setPosition(n.x,n.y);n.body.setPosition(n.x,n.y);if(n.type==='pulsar'&&n.body.scale>0.1)n.body.setScale(n.r/62);if(n.cring)n.cring.setPosition(n.x,n.y).setScale((n.r+9)/60*(1+0.07*Math.sin(this.time.now*0.012))).setAlpha(0.35+0.3*Math.abs(Math.sin(this.time.now*0.006)));if(n.crack)n.crack.setPosition(n.x,n.y).setScale((n.r+6)/60*(1-Math.min(1,n.orbitT/1.5)*0.6));}
- spawnRow(){const s=this.sector,R=this.rng,W=this.W;this.genY-=(150+R()*55)*(1+Math.min(s,6)*0.025);
+ spawnRow(){const s=this.sector,P=this.P,R=this.rng,W=this.W;this.genY-=(150+R()*55)*(1+P.d*0.025);
   const xs=R()<0.36?[50+R()*(W/2-100),W/2+50+R()*(W/2-100)]:[60+R()*(W-120)];
   xs.forEach(x=>{let type='normal';const q=R();
-   if(q<0.045&&this.genY<0)type='gold';else if(s>=1&&q<0.32)type='moving';else if(s>=3&&q<0.55)type='fragile';else if(s>=4&&q<0.75)type='pulsar';
-   const qc=R();if(type!=='gold'&&s>=1&&this.d.tut&&!this.prevCh&&qc<0.085)type='charged';this.prevCh=type==='charged';
-   const r=Math.max(18,(22+R()*13)-Math.min(s,6)*0.8);this.makeNode(x,this.genY+(R()-0.5)*40,Math.floor(R()*3),r,type);});
+   if(q<0.045&&this.genY<0)type='gold';else if(q<P.mv)type='moving';else if(P.fr&&q<P.fr)type='fragile';else if(P.pu&&q<P.pu)type='pulsar';
+   const qc=R();if(type!=='gold'&&P.ch&&this.d.tut&&!this.prevCh&&qc<0.085)type='charged';this.prevCh=type==='charged';
+   const r=Math.max(18,(22+R()*13)-P.d*0.8);this.makeNode(x,this.genY+(R()-0.5)*40,Math.floor(R()*3),r,type);});
   if(R()<0.55){const mx=40+R()*(W-80),my=this.genY+60+R()*40;for(let k=0;k<3;k++){const m={x:mx+(k-1)*22,y:my+Math.sin(k)*8};m.o=this.add.image(m.x,m.y,'dot').setTint(C.gold).setBlendMode('ADD').setScale(0.45).setDepth(3);this.tweens.add({targets:m.o,scale:0.6,yoyo:true,repeat:-1,duration:500+k*90,ease:'Sine.inOut'});this.motes.push(m);}}
-  if(s>=4&&R()<(s===4?0.34:0.12)&&this.genY<this.camY-200){const side=R()<0.5,hx=side?40+R()*60:W-40-R()*60,hy=this.genY+90;
+  if(P.ho&&R()<P.ho&&this.genY<this.camY-200){const side=R()<0.5,hx=side?40+R()*60:W-40-R()*60,hy=this.genY+90;
    const bh={x:hx,y:hy,r:20};bh.glow=this.add.image(hx,hy,'glow').setTint(C.mag).setBlendMode('ADD').setScale(2.6).setAlpha(0.45).setDepth(2);
    bh.disk=this.add.image(hx,hy,'dash').setTint(C.vio).setBlendMode('ADD').setScale(0.9).setDepth(2);bh.ring=this.add.image(hx,hy,'ring').setTint(C.mag).setBlendMode('ADD').setScale(0.48).setDepth(3);
    bh.core=this.add.circle(hx,hy,18,0x000000,1).setDepth(3);bh.pull=this.add.image(hx,hy,'dash').setTint(C.vio).setAlpha(0.12).setScale(3.6).setDepth(1);this.holes.push(bh);}
-  if(s>=2&&R()<0.28+0.06*Math.min(s-2,4)){const h={y:this.genY+75+R()*30,x:R()*W,sp:(50+R()*60+s*8)*(R()<0.5?-1:1)*(s===2?0.6:1),ph:R()*6,arm:0};h.tr=this.add.graphics().setDepth(1);for(let x=4;x<W;x+=16){h.tr.fillStyle(C.danger,0.22);h.tr.fillRect(x,h.y-1,7,2);}
+  if(P.sh&&R()<P.sh){const h={y:this.genY+75+R()*30,x:R()*W,sp:(50+R()*60+P.d*8)*(R()<0.5?-1:1)*P.ss,ph:R()*6,arm:0};h.tr=this.add.graphics().setDepth(1);for(let x=4;x<W;x+=16){h.tr.fillStyle(C.danger,0.22);h.tr.fillRect(x,h.y-1,7,2);}
    h.g=this.add.image(h.x,h.y,'glow').setTint(C.danger).setBlendMode('ADD').setAlpha(0.5).setScale(0.6).setDepth(2);h.s=this.add.image(h.x,h.y,'shard').setTint(C.danger).setScale(0.5).setDepth(3);this.haz.push(h);}}
  killNode(n,fx){n.alive=false;if(fx){this.burst.particleTint=COLS[n.col];this.burst.explode(26,n.x,n.y);}
   [n.glow,n.ring,n.body,n.crack,n.cring].forEach(o=>o&&o.destroy());n.cring=null;}
@@ -101,12 +103,12 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   const perfect=dist<n.r+24,R=this.R;R.latches++;R.combo++;R.maxCombo=Math.max(R.maxCombo,R.combo);
   const mult=this.mult();let pts=10,label=null,col=n.type==='gold'?C.gold:n.type==='charged'?CHG:COLS[n.col];c.nm=null;c.fling=null;
   this.fuel=Math.min(100,this.fuel+(perfect?13:6));
-  if(perfect){R.perfects++;pts+=25;this.hitstop=0.075;this.focus=Math.min(this.focusMax,this.focus+0.25);this.bigSparks.explode(30,c.x,c.y);this.sparks.explode(16,c.x,c.y);this.cameras.main.shake(110,0.006);this.punch(1.035,140);this.perfectText(c.x,c.y);this.ringWave(c.x,c.y,C.gold,1.8);}
+  if(perfect){R.perfects++;pts+=25;this.hitstop=hitS(0.075);this.focus=Math.min(this.focusMax,this.focus+0.25);this.bigSparks.explode(30,c.x,c.y);this.sparks.explode(16,c.x,c.y);shake(this.cameras.main,110,0.006);this.punch(1.035,140);this.perfectText(c.x,c.y);this.ringWave(c.x,c.y,C.gold,1.8);}
   if(n.type==='charged'){if(perfect){pts*=3;R.charged++;this.fuel=Math.min(100,this.fuel+20);Sfx.charged();label='CHARGED ×3';this.ringWave(n.x,n.y,0xFFFFFF,2.6);this.burst.particleTint=CHG;this.burst.explode(30,n.x,n.y);}else this.float(n.x,n.y+n.r+30,'too loose — no charge',C.dim,11);}
   if(c.b>0){R.banks++;pts+=60;this.fuel=Math.min(100,this.fuel+5);Sfx.bank();label=(label?label+' · ':'')+'BANKSHOT'+(perfect?'!':'')+' +fuel';this.ringWave(c.x,c.y,C.cyan,1.6);}
   if(n.col===this.lastCol&&n.type!=='gold'){this.chain++;}else this.chain=1;this.lastCol=n.col;
   Sfx.catchNote(R.combo,perfect);
-  if(this.chain===3){R.chords++;pts+=150;this.chain=0;this.lastCol=-1;Sfx.chord(R.combo);this.float(n.x,n.y-70,'CHORD',col,26);this.ringWave(n.x,n.y,col,2.4);this.cameras.main.shake(140,0.006);}
+  if(this.chain===3){R.chords++;pts+=150;this.chain=0;this.lastCol=-1;Sfx.chord(R.combo);this.float(n.x,n.y-70,'CHORD',col,26);this.ringWave(n.x,n.y,col,2.4);shake(this.cameras.main,140,0.006);}
   this.full.push({x:n.x,y:n.y,p:perfect,ch:this.chain===0,col}); if(this.full.length>400)this.full.shift();this.drawConst();
   if(n.type==='gold')this.loot(n);
   const gain=pts*mult;R.score+=gain;this.float(n.x,n.y-n.r-26,'+'+gain,perfect?C.gold:C.text,perfect?22:17);if(label)this.float(n.x,n.y-n.r-50,label,C.gold,15);
@@ -125,27 +127,27 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
  constLines(g,P,map,sc){g.clear();for(let i=1;i<P.length;i++){const k=sc<1?1:i/P.length,a=map(P[i-1]),b=map(P[i]);g.lineStyle(7*sc,C.vio,0.07*k);g.lineBetween(a.x,a.y,b.x,b.y);g.lineStyle(1.6,P[i].ch?C.mag:C.vio,0.2+0.5*k);g.lineBetween(a.x,a.y,b.x,b.y);}
   P.forEach((p,i)=>{const k=sc<1?1:(i+1)/P.length,m=map(p);if(p.ch){g.lineStyle(1.5,C.mag,0.8*k);g.strokeCircle(m.x,m.y,7*Math.max(sc,0.7));}
    if(p.p){g.fillStyle(C.gold,0.25*k);g.fillCircle(m.x,m.y,7*Math.max(sc,0.6));g.fillStyle(C.gold,k);g.fillCircle(m.x,m.y,3.2);}else{g.fillStyle(C.text,0.35+0.5*k);g.fillCircle(m.x,m.y,2);}});}
- punch(z,d){const cam=this.cameras.main;this.tweens.killTweensOf(cam);cam.setZoom(R*z);this.tweens.add({targets:cam,zoom:R,duration:d,ease:'Cubic.out'});}
+ punch(z,d){const cam=this.cameras.main;this.tweens.killTweensOf(cam);cam.setZoom(R*punchZ(z));this.tweens.add({targets:cam,zoom:R,duration:d,ease:'Cubic.out'});}
  perfectText(x,y){const t=txt(this,x,y-44,'PERFECT',30,C.gold,{glow:C.gold,blur:16,spacing:4}).setDepth(21).setScale(1.8).setAlpha(0);
   this.tweens.add({targets:t,scale:1,alpha:1,duration:160,ease:'Back.out'});this.tweens.add({targets:t,y:y-80,alpha:0,delay:420,duration:420,ease:'Cubic.in',onComplete:()=>t.destroy()});}
  crEff(){return this.catchR+(this.overdrive?10:0)+Math.max(0,12-6*this.sector);}
  mult(){return Math.min(5,1+Math.floor(this.R.combo/6))*(this.overdrive?2:1);}
  loot(n){const R=this.R,q=Math.random();R.golds++;Sfx.gold();this.sparks.explode(40,n.x,n.y);this.ringWave(n.x,n.y,C.gold,3);let t;
-  if(q<0.03){R.loot+=150;t='JACKPOT +150 dust';this.cameras.main.flash(250,255,201,74);}else if(q<0.55){const v=10+Math.floor(Math.random()*25);R.loot+=v;t='+'+v+' dust';}
+  if(q<0.03){R.loot+=150;t='JACKPOT +150 dust';flash(this.cameras.main,250,255,201,74);}else if(q<0.55){const v=10+Math.floor(Math.random()*25);R.loot+=v;t='+'+v+' dust';}
   else if(q<0.8){this.fuel=100;this.focus=this.focusMax;t='FULL BURN';}else if(q<0.92&&this.lives<this.maxLives){this.lives++;t='+1 SHIELD';}else{R.score+=500*this.mult();t='+'+500*this.mult()+' STARFALL';}
   this.float(n.x,n.y-95,t,C.gold,20);this.time.delayedCall(60,()=>{if(n.alive){n.type='normal';n.body.setTexture('node').setTint(COLS[n.col]).setScale(n.r/62);n.glow.setTint(COLS[n.col]);n.ring.setTint(COLS[n.col]);}});}
- setOverdrive(on){this.overdrive=on;if(on)this.odT=this.R.time;Sfx.intensity=on?0.95:Math.min(0.7,0.2+this.sector*0.12);if(on){this.hitstop=0.16;Sfx.overdrive();this.punch(1.09,520);this.vib([20,30,60]);this.cameras.main.shake(300,0.008);this.cameras.main.flash(260,255,201,74);
+ setOverdrive(on){this.overdrive=on;if(on)this.odT=this.R.time;Sfx.intensity=on?0.95:Math.min(0.7,0.2+this.sector*0.12);if(on){this.hitstop=hitS(0.16);Sfx.overdrive();this.punch(1.09,520);this.vib([20,30,60]);shake(this.cameras.main,300,0.008);flash(this.cameras.main,260,255,201,74);
    [0,110,220].forEach((dl,i)=>this.time.delayedCall(dl,()=>this.ringWave(this.c.x,this.c.y,i===1?C.mag:C.gold,4+i*1.5)));this.bigSparks.explode(60,this.c.x,this.c.y);
    const W=this.W,y=this.H*0.36;const t=txt(this,W/2,y,'OVERDRIVE',46,C.gold,{glow:C.gold,blur:24,spacing:6}).setScrollFactor(0).setDepth(965).setScale(3).setAlpha(0);
    const t2=txt(this,W/2,y+40,'×2 SCORE  ·  WIDER GRAVITY',13,C.text,{spacing:3}).setScrollFactor(0).setDepth(965).setAlpha(0);
    this.tweens.add({targets:t,scale:1,alpha:1,duration:380,ease:'Back.out'});this.tweens.add({targets:t2,alpha:1,delay:250,duration:300});
    this.tweens.add({targets:[t,t2],alpha:0,delay:1500,duration:500,onComplete:()=>{t.destroy();t2.destroy();}});
-   this.odEdge.setAlpha(0);this.tweens.add({targets:this.odEdge,alpha:{from:0.9,to:0.45},duration:600,yoyo:true,repeat:-1,ease:'Sine.inOut'});
+   this.odEdge.setAlpha(0);this.tweens.add({targets:this.odEdge,alpha:{from:fa(0.9),to:fa(0.45)},duration:600,yoyo:true,repeat:-1,ease:'Sine.inOut'});
    this.cg.setTint(C.gold);this.dust.particleTint=C.gold;}else{this.tweens.killTweensOf(this.odEdge);this.tweens.add({targets:this.odEdge,alpha:0,duration:300});this.cg.setTint(this.skin.dark?C.mag:this.skin.a);this.dust.particleTint=this.skin.b;}}
- newSector(){const s=this.sector;Sfx.setSector(s);Sfx.sector();this.bg.neb.setTint(SECTORS[s%6].t);this.banner(s<6?SECTORS[s].n:SECTORS[5].n+' '+(s-4),s===4?'EVENT · black holes bend your flight':'SECTOR '+(s+1));if(s===4){this.punch(1.06,700);this.cameras.main.shake(500,0.005);Sfx.event();}
-  this.fuel=Math.min(100,this.fuel+30);this.R.score+=250*(s);this.cameras.main.flash(300,155,123,255);if(!this.overdrive)Sfx.intensity=Math.min(0.7,0.2+s*0.12);}
- damage(why){if(this.inv>0||this.over)return;if(this.tutStep<99&&!this.d.tut){this.inv=1.2;this.cameras.main.shake(150,0.006);Sfx.hit();this.float(this.c.x,this.c.y-40,'practice — no harm',C.dim,13);return;}this.lives--;this.vib([30,40,30]);Sfx.hit();this.cameras.main.shake(260,0.012);this.hitstop=0.07;
-  this.flash.setFillStyle(C.danger,0.35);this.tweens.add({targets:this.flash,alpha:{from:1,to:0},duration:350});this.sparks.particleTint=C.danger;this.sparks.explode(30,this.c.x,this.c.y);this.sparks.particleTint=C.gold;
+ newSector(){const s=this.sector;this.P=prof(s);Sfx.setSector(s);Sfx.sector();this.bg.neb.setTint(SECTORS[s%6].t);this.banner(s<6?SECTORS[s].n:SECTORS[5].n+' '+(s-4),s===4?'EVENT · black holes bend your flight':'SECTOR '+(s+1));if(s===4){this.punch(1.06,700);shake(this.cameras.main,500,0.005);Sfx.event();}
+  this.fuel=Math.min(100,this.fuel+30);this.R.score+=250*(s);flash(this.cameras.main,300,155,123,255);if(!this.overdrive)Sfx.intensity=Math.min(0.7,0.2+s*0.12);}
+ damage(why){if(this.inv>0||this.over)return;if(this.tutStep<99&&!this.d.tut){this.inv=1.2;shake(this.cameras.main,150,0.006);Sfx.hit();this.float(this.c.x,this.c.y-40,'practice — no harm',C.dim,13);return;}this.lives--;this.vib([30,40,30]);Sfx.hit();shake(this.cameras.main,260,0.012);this.hitstop=hitS(0.07);
+  this.flash.setFillStyle(C.danger,fa(0.35));this.tweens.add({targets:this.flash,alpha:{from:1,to:0},duration:300});this.sparks.particleTint=C.danger;this.sparks.explode(30,this.c.x,this.c.y);this.sparks.particleTint=C.gold;
   this.brk(why==='shard'?'shard':(this.lostWhy||'miss'));this.lostWhy=null;this.R.combo=0;this.chain=0;if(this.overdrive)this.setOverdrive(false);
   if(this.lives<=0){this.end(why);return;}this.inv=1.6;this.shieldBreak();}
  lost(){const c=this.c;this.damage('lost');if(this.over)return;
@@ -154,7 +156,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   if(!n)n=this.makeNode(this.W/2,this.camY+this.H*0.65,0,30,'normal');
   c.state='orbit';c.node=n;c.ang=-Math.PI/2;c.r=n.r+30;n.orbitT=0;c.trail=[];this.ringWave(n.x,n.y,C.text,2);}
  // ---------- fx ----------
- vib(p){if(navigator.vibrate)try{navigator.vibrate(p)}catch(e){}}
+ vib(p){vib(p);}
  float(x,y,s,col,size){x=Phaser.Math.Clamp(x,70,this.W-70);const t=txt(this,x,y,s,size,col,{glow:col,blur:10}).setDepth(20);{const hw=t.width/2+8;t.x=hw*2<this.W?Phaser.Math.Clamp(x,hw,this.W-hw):this.W/2;}t.setScale(0.5);this.tweens.add({targets:t,scale:1,duration:180,ease:'Back.out'});this.tweens.add({targets:t,y:y-46,alpha:0,delay:350,duration:600,ease:'Cubic.in',onComplete:()=>t.destroy()});}
  ringWave(x,y,col,s){const r=this.add.image(x,y,'ring').setTint(col).setBlendMode('ADD').setScale(0.3).setDepth(7);this.tweens.add({targets:r,scale:s,alpha:0,duration:520,ease:'Cubic.out',onComplete:()=>r.destroy()});}
  banner(a,b){const W=this.W,y=this.H*0.36;const t1=txt(this,W/2,y,a,30,C.text,{glow:C.mag,blur:18,spacing:4}).setScrollFactor(0).setDepth(960).setAlpha(0);const t2=txt(this,W/2,y+34,b,13,C.vio,{spacing:4}).setScrollFactor(0).setDepth(960).setAlpha(0);
@@ -174,7 +176,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   // combo hesitation bar
   if(R.combo>1){const k=1-Math.min(1,this.hes/2.6);g.fillStyle(C.gold,0.8);g.fillRect(W/2-40,98,80*k,2);}
   this.scoreT.setText(R.score.toLocaleString());this.comboT.setText(R.combo>1?`COMBO ${R.combo}  ×${this.mult()}`:'');
-  this.secT.setText((this.daily?'DAILY · ':this.secMode?'':'')+'SECTOR '+(this.sector+1)+'  '+this.secLatch+'/'+PER_SECTOR);for(let i=0;i<PER_SECTOR;i++){g.fillStyle(i<this.secLatch?(this.secMode?C.mag:C.vio):C.ink,i<this.secLatch?0.95:0.9);g.fillRoundedRect(16+i*6.2,50,4.6,5,1.5);}this.secT.setFontSize(10);}
+  this.secT.setText((this.daily?'DAILY · ':this.secMode?'':'')+(this.secMode?'LEVEL '+(this.level+1):'SECTOR '+(this.sector+1))+'  '+this.secLatch+'/'+PER_SECTOR);for(let i=0;i<PER_SECTOR;i++){g.fillStyle(i<this.secLatch?(this.secMode?C.mag:C.vio):C.ink,i<this.secLatch?0.95:0.9);g.fillRoundedRect(16+i*6.2,50,4.6,5,1.5);}this.secT.setFontSize(10);}
  pause(on){if(this.over||this.choice)return;this.paused=on;if(on){this.pauseO=[];const W=this.W,H=this.H;const z=o=>{o.setScrollFactor(0).setDepth(1100);this.pauseO.push(o);return o;};
    z(this.add.rectangle(W/2,H/2,W,H,C.void,0.7));z(txt(this,W/2,H*0.38,'PAUSED',36,C.text,{glow:C.vio,spacing:6}));
    z(button(this,W/2,H*0.5,220,60,'RESUME',C.gold,()=>this.pause(false),{size:22,solid:true}));z(button(this,W/2,H*0.5+76,220,52,'MENU',C.vio,()=>this.scene.start('Menu'),{size:18}));}
@@ -197,28 +199,19 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
  drawShields(time){const g=this.shG,c=this.c;g.clear();const sh=this.lives-1;if(this.over||sh<=0)return;for(let i=0;i<sh;i++){const a=time*0.003+i*Math.PI*2/sh;g.fillStyle(C.gold,0.75);g.fillCircle(c.x+Math.cos(a)*17,c.y+Math.sin(a)*17,2.2);}}
  // ---------- v6: sector clear ----------
  clearSector(){const s=this.sector,R=this.R,d=this.d,W=this.W,c=this.c;const p=this.secPerf;this.secPerf=0;const stars=p>=9?3:p>=4?2:1;
-  R.clears++;R.stars+=stars;const k=1+0.25*this.secStreak;const bonus=Math.round((300+150*stars)*(s+1)*k);R.score+=bonus;const dust=Math.round((8+6*stars)*(s+1)*k);
-  if(this.secMode)R.pot+=dust;else R.loot+=dust;this.fuel=Math.min(100,this.fuel+30);let extra='';if(stars===3&&this.lives<this.maxLives){this.lives++;extra='  ·  +1 SHIELD';}
-  if(!this.daily&&this.secMode){const B=d.bestSR;B.stars=B.stars||{};B.stars[s]=Math.max(B.stars[s]||0,stars);}
-  Sfx.sectorClear(stars);this.punch(1.05,500);this.cameras.main.flash(220,155,123,255);this.bigSparks.explode(50,c.x,c.y);
+  R.clears++;R.stars+=stars;const lvn=this.secMode?this.level+1:s+1;const bonus=Math.round((300+150*stars)*lvn);R.score+=bonus;let dust;
+  if(this.secMode){const L0=d.lv,i=this.level,old=L0.st[i]||0;const first=!old;dust=first?30+15*i:stars>old?(12+6*i)*(stars-old):2;this.lvRes={stars,old,first,dust,unlocked:first&&i+1<LEVELS.length?i+2:0,improved:stars>old};R.loot+=dust;L0.st[i]=Math.max(old,stars);if(first&&i+1<LEVELS.length)L0.u=Math.max(L0.u,i+2);this.S.save();}else{dust=Math.round((8+6*stars)*(s+1));R.loot+=dust;}this.fuel=Math.min(100,this.fuel+30);let extra='';if(stars===3&&this.lives<this.maxLives){this.lives++;extra='  ·  +1 SHIELD';}
+  Sfx.sectorClear(stars);this.punch(1.05,500);flash(this.cameras.main,220,155,123,255);this.bigSparks.explode(50,c.x,c.y);
   // constellation bloom of this sector's catches
   const P=this.full.slice(-PER_SECTOR),g=this.add.graphics().setBlendMode('ADD').setDepth(6),o={k:0};
   this.tweens.add({targets:o,k:1,duration:1500,ease:'Sine.out',onUpdate:()=>{g.clear();const a=1-o.k;for(let i=1;i<P.length;i++){g.lineStyle(2+4*a,i%3?C.vio:C.mag,0.8*a);g.lineBetween(P[i-1].x,P[i-1].y,P[i].x,P[i].y);}P.forEach(q=>{g.fillStyle(q.p?C.gold:0xFFFFFF,a);g.fillCircle(q.x,q.y,(q.p?4:2.5)*(1+o.k*1.5));});},onComplete:()=>g.destroy()});
   const H=this.H,y=this.H*0.3,star='★'.repeat(stars)+'☆'.repeat(3-stars);
-  const t1=txt(this,W/2,y,'SECTOR '+(s+1)+' CLEAR',30,C.text,{glow:C.mag,blur:18,spacing:4}),t2=txt(this,W/2,y+32,(SECTORS[s%6]||SECTORS[5]).n.toUpperCase(),12,C.vio,{spacing:4}),
-   t3=txt(this,W/2,y+62,star,28,C.gold,{glow:C.gold,blur:12,spacing:6}),t4=txt(this,W/2,y+92,'+'+bonus.toLocaleString()+'  ·  +'+dust+' dust'+(this.secMode?' to pot':'')+extra,12,C.gold,{weight:'600'});
+  const t1=txt(this,W/2,y,(this.secMode?'LEVEL '+lvn:'SECTOR '+(s+1))+' CLEAR',30,C.text,{glow:C.mag,blur:18,spacing:4}),t2=txt(this,W/2,y+32,(this.secMode?this.LV.n:(SECTORS[s%6]||SECTORS[5]).n).toUpperCase(),12,C.vio,{spacing:4}),
+   t3=txt(this,W/2,y+62,star,28,C.gold,{glow:C.gold,blur:12,spacing:6}),t4=txt(this,W/2,y+92,'+'+bonus.toLocaleString()+'  ·  +'+dust+' dust'+(this.secMode&&this.lvRes.first?' first clear':'')+extra,12,C.gold,{weight:'600'});
   const L=[t1,t2,t3,t4];L.forEach((t,i)=>{t.setScrollFactor(0).setDepth(962).setAlpha(0).setScale(0.8);this.tweens.add({targets:t,alpha:1,scale:1,duration:300,delay:i*90,ease:'Back.out'});});
   if(!this.secMode){this.tweens.add({targets:L,alpha:0,delay:1350,duration:350,onComplete:()=>L.forEach(t=>t.destroy())});this.time.delayedCall(1800,()=>{if(!this.over){this.sector++;this.newSector();}});return;}
-  // SECTOR RUN: continue / bank choice
-  this.choice=true;this.paused=true;this.press=null;const z=o=>{o.setScrollFactor(0).setDepth(1150);this.choiceO.push(o);return o;};this.choiceO=[...L];L.forEach(t=>t.setDepth(1151));
-  z(this.add.rectangle(W/2,H/2,W,H,C.void,0.55)).setAlpha(0);this.tweens.add({targets:this.choiceO[this.choiceO.length-1],alpha:1,duration:250});
-  const by=Math.min(H-150,y+170);let lock=true;this.time.delayedCall(450,()=>lock=false);
-  const nk=1+0.25*(this.secStreak+1);
-  const cont=z(button(this,W/2,by,264,72,'CONTINUE ▸',C.cyan,()=>{if(!lock)this.choose('go');},{size:24,solid:true,breathe:true,spacing:4,sub:'sector streak ×'+nk.toFixed(2)+' · pot at risk'}));
-  z(button(this,W/2,by+88,220,50,'BANK & EXIT',C.vio,()=>{if(!lock)this.choose('bank');},{size:16,spacing:3,sub:'keep +'+R.pot+' dust pot'}));
-  const bar=z(this.add.graphics());const o2={k:0};this.choiceTw=this.tweens.add({targets:o2,k:1,duration:5000,onUpdate:()=>{bar.clear();bar.fillStyle(C.cyan,0.8);bar.fillRoundedRect(W/2-120,by+40,240*(1-o2.k),3,1.5);},onComplete:()=>this.choose('go')});}
- choose(w){if(!this.choice)return;this.choice=false;this.choiceTw&&this.choiceTw.remove();Sfx.click();const O=this.choiceO;this.choiceO=[];this.tweens.add({targets:O,alpha:0,duration:200,onComplete:()=>O.forEach(o=>o.destroy())});
-  if(w==='bank'){this.paused=false;this.end('bank');return;}this.secStreak++;this.paused=false;this.sector++;this.newSector();this.inv=Math.max(this.inv,0.8);}
+  // LEVEL clear: celebrate, then end the run as a clear
+  this.inv=99;this.choice=true;this.tweens.add({targets:L,alpha:0,delay:1500,duration:300,onComplete:()=>L.forEach(t=>t.destroy())});this.time.delayedCall(1250,()=>{this.choice=false;this.end('clear');});}
  // ---------- v5: near misses ----------
  trackStars(cr){const c=this.c;if(!c.nm)c.nm=new Map();
   for(const n of this.nodes){if(!n.alive||n===c.last)continue;const gap=Math.hypot(n.x-c.x,n.y-c.y)-(n.r+cr);let m=c.nm.get(n);
@@ -253,7 +246,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   const q=Math.floor(t/0.2);if(late&&q!==n.tq){n.tq=q;Sfx.tick(k);}
   if(Math.random()<0.35){this.burst.particleTint=Math.random()<0.5?0xFFFFFF:C.vio;const a=Math.random()*6.28;this.burst.emitParticleAt(n.x+Math.cos(a)*n.r,n.y+Math.sin(a)*n.r,1);}
   if(t>=CH_T)this.collapse(n);}
- collapse(n){const c=this.c,R=this.R;R.collapses++;Sfx.collapse();this.vib([20,30,20]);this.cameras.main.shake(220,0.01);
+ collapse(n){const c=this.c,R=this.R;R.collapses++;Sfx.collapse();this.vib([20,30,20]);shake(this.cameras.main,220,0.01);
   this.ringWave(n.x,n.y,C.danger,3.2);this.ringWave(n.x,n.y,0xFFFFFF,2);this.sparks.particleTint=C.danger;this.sparks.explode(26,n.x,n.y);this.sparks.particleTint=C.gold;
   this.killNode(n,true);this.brk('charged');R.combo=0;this.chain=0;if(this.overdrive)this.setOverdrive(false);this.float(n.x,n.y-n.r-30,'COLLAPSED',C.danger,15);
   const tx=-Math.sin(c.ang)*c.dir,ty=Math.cos(c.ang)*c.dir,rx=Math.cos(c.ang),ry=Math.sin(c.ang);c.vx=tx*440+rx*120;c.vy=ty*440+ry*120;c.state='fly';c.last=null;c.ft=0;c.b=0;c.nm=null;c.fling='charged';}
@@ -323,7 +316,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   this.haz=this.haz.filter(h=>{if(h.y>this.camY+H+120){h.g.destroy();h.s.destroy();h.tr.destroy();return false;}return true;});
   for(const m of this.motes){if(!m.dead&&Math.hypot(m.x-c.x,m.y-c.y)<24&&!this.over){m.dead=true;m.o.destroy();this.moteChain++;R.score+=5*this.mult();this.fuel=Math.min(100,this.fuel+2.5);Sfx.tone(Sfx.scaleHz(10+this.moteChain%8),0.25,'sine',0.07);this.sparks.explode(5,m.x,m.y);R.motes=(R.motes||0)+1;}}
   this.motes=this.motes.filter(m=>{if(!m.dead&&m.y>this.camY+H+100){m.o.destroy();m.dead=true;}return !m.dead;});if(c.state==='orbit')this.moteChain=0;
-  this.height=Math.max(this.height||0,H-170-c.y);if(this.bestLine&&!this.passedBest&&this.height>this.bestH){this.passedBest=true;this.banner('PAST YOUR BEST','keep climbing');Sfx.gold();this.cameras.main.flash(200,255,201,74);this.bestTxt.setText('★ NEW BEST');}
+  this.height=Math.max(this.height||0,H-170-c.y);if(this.bestLine&&!this.passedBest&&this.height>this.bestH){this.passedBest=true;this.banner('PAST YOUR BEST','keep climbing');Sfx.gold();flash(this.cameras.main,200,255,201,74);this.bestTxt.setText('★ NEW BEST');}
   this.ghostUpdate(time);this.drawShields(time);
   // comet visuals
   const blink=this.inv>0&&(time%160<80);this.cg.setPosition(c.x,c.y).setAlpha(blink?0.3:1).setScale(0.8+(this.overdrive?0.25:0)+Math.sin(time*0.02)*0.05);this.cc.setPosition(c.x,c.y).setAlpha(blink?0.4:1);
@@ -342,28 +335,29 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   if(c.state==='orbit'&&c.node.type==='fragile'){fg.lineStyle(2,C.danger,0.8);fg.beginPath();fg.arc(c.node.x,c.node.y,c.node.r+4,-Math.PI/2,-Math.PI/2+Math.PI*2*(1-c.node.orbitT/1.5));fg.strokePath();}
   this.drawHud();}
  // ---------- end ----------
- end(why){if(this.over)return;if(why==='fuel')this.brk('fuel');this.over=true;this.why=why;this.clearHint();Sfx.intensity=0;Sfx.over();this.press=null;
-  const d=this.d,R=this.R,S=this.S;const potK=why==='bank'?1:0.5;this.potKept=Math.floor(R.pot*potK);const dust=Math.floor(R.score/40)+R.loot+this.potKept;d.dust+=dust;d.runs++;d.mode=this.daily?d.mode:this.mode;
-  let newBest;if(this.secMode&&!this.daily){const B=d.bestSR;newBest=R.score>B.score;if(newBest)B.score=R.score;B.sector=Math.max(B.sector||0,R.clears);}else{newBest=R.score>d.best;if(newBest)d.best=R.score;}d.bestSector=Math.max(d.bestSector,this.daily?d.bestSector:this.sector+1);
+ end(why){if(this.over)return;if(why==='fuel')this.brk('fuel');this.over=true;this.why=why;this.clearHint();Sfx.intensity=0;if(why!=='clear')Sfx.over();this.press=null;
+  const d=this.d,R=this.R,S=this.S;this.potKept=0;const dust=Math.floor(R.score/40*(this.wasCleared?0.5:1))+R.loot;d.dust+=dust;d.runs++;d.mode=this.daily?d.mode:this.mode;
+  let newBest=false;if(this.secMode){const b0=d.lv.b[this.level]||0;if(why==='clear'&&R.score>b0){d.lv.b[this.level]=R.score;newBest=b0>0;}this.lvBest=d.lv.b[this.level]||0;}else{newBest=R.score>d.best;if(newBest)d.best=R.score;if(!this.daily)d.bestSector=Math.max(d.bestSector,this.sector+1);}
   d.stats.perfects+=R.perfects;d.stats.latches+=R.latches;d.stats.golds+=R.golds;d.stats.banks+=R.banks;
   const h=Math.round(this.height||0);this.ghostSave(h,R.score);if(this.daily){if(d.daily.date!==today())d.daily={date:today(),best:0,plays:0,h:0};d.daily.plays++;d.daily.best=Math.max(d.daily.best,R.score);d.daily.h=Math.max(d.daily.h||0,h);}else if(!this.secMode){if(!this.startSector)d.bestH=Math.max(d.bestH||0,h);}
   const rank0=rankOf(d.xp||0);d.xp=(d.xp||0)+R.latches+R.perfects*2+R.chords*5;const rank1=rankOf(d.xp);this.rankUp=rank1>rank0?rank1:0;if(this.rankUp){d.dust+=rank1*40;}
   if(R.time<35)d.assist=Math.min(1,d.assist+0.12);else if(R.time>80)d.assist=Math.max(0,d.assist-0.08);
-  ensureMissions(d);const done=[];const val={latch:R.latches,perfect:R.perfects,combo:R.maxCombo,sector:this.sector+1,score:R.score,chord:R.chords,bank:R.banks,gold:R.golds,charged:R.charged};
+  ensureMissions(d);const done=[];const val={latch:R.latches,perfect:R.perfects,combo:R.maxCombo,sector:this.secMode?this.LV.t+1:this.sector+1,score:R.score,chord:R.chords,bank:R.banks,gold:R.golds,charged:R.charged};
   d.missions=d.missions.map(m=>{if(val[m.type]>=m.n){done.push(m);d.dust+=m.reward;d.mDone++;return null;}return m;}).filter(Boolean);ensureMissions(d);
   d.tut=true;S.save();
   this.time.delayedCall(900,()=>this.results(why,dust,newBest,done));}
  results(why,dust,newBest,done){const W=this.W,H=this.H,R=this.R,d=this.d;const L=[];const z=o=>{o.setScrollFactor(0).setDepth(1200);L.push(o);return o;};
   z(this.add.rectangle(W/2,H/2,W,H,C.void,0.78));
   const goals=[...SKINS.filter(s=>!d.skins.includes(s.id)).map(s=>({n:s.name+' trail',c:s.cost})),...UPGRADES.filter(u=>d.up[u.id]<u.max).map(u=>({n:u.name,c:upCost(u.id,d.up[u.id])}))].sort((a,b)=>a.c-b.c);
-  const co=this.callout();const coH=co?(co.a?58:40):0;const extra=coH+done.length*24+(this.rankUp?26:0)+(goals[0]?24:0);let cH=Phaser.Math.Clamp(H-30-(396+extra)-70,70,140);
+  const LR=why==='clear'?this.lvRes:null;const co=LR?null:this.callout();const lrH=LR?(LR.unlocked?56:34):0;const coH=co?(co.a?58:40):0;const extra=lrH+coH+done.length*24+(this.rankUp?26:0)+(goals[0]?24:0);let cH=Phaser.Math.Clamp(H-30-(396+extra)-70,70,140);
   cH=Math.min(cH,120);const ph=376+extra+cH,top=Math.max(12,(H-ph-60)/2);const pg=z(this.add.graphics());let y=top+28;
-  z(txt(this,W/2,y,why==='bank'?'BANKED · '+R.clears+' SECTOR'+(R.clears===1?'':'S')+' CLEARED':why==='fuel'?'BURNED OUT':why==='shard'?'SHATTERED':'LOST IN THE DARK',13,C.dim,{spacing:4}));y+=44;
+  z(txt(this,W/2,y,why==='clear'?'LEVEL '+(this.level+1)+' CLEAR · '+this.LV.n.toUpperCase():this.secMode?'LEVEL '+(this.level+1)+' FAILED · '+(why==='fuel'?'BURNED OUT':why==='shard'?'SHATTERED':'LOST'):why==='fuel'?'BURNED OUT':why==='shard'?'SHATTERED':'LOST IN THE DARK',13,C.dim,{spacing:4}));y+=44;
   const sc=z(txt(this,W/2,y,'0',50,C.text,{glow:C.vio,blur:18}));const o={v:0};this.tweens.add({targets:o,v:R.score,duration:900,ease:'Cubic.out',onUpdate:()=>sc.setText(Math.round(o.v).toLocaleString())});y+=40;
   if(newBest){const nb=z(txt(this,W/2,y,'★ NEW BEST ★',17,C.gold,{glow:true}));nb.setScale(0);this.tweens.add({targets:nb,scale:1,delay:900,duration:400,ease:'Back.out',onStart:()=>{Sfx.gold();this.bigSparks.explode(40,W/2,this.camY+y);}});}
-  else z(txt(this,W/2,y,(this.secMode&&!this.daily?'sector run best ':'best ')+(this.secMode&&!this.daily?d.bestSR.score:d.best).toLocaleString(),13,C.dim));y+=38;
-  const st=[['catches',R.latches,C.cyan],['perfect',R.perfects,C.gold],['chords',R.chords,C.mag],['max combo',R.maxCombo,C.cyan],['sector',this.sector+1,C.vio]];
+  else z(txt(this,W/2,y,this.secMode?(this.lvBest?'level best '+this.lvBest.toLocaleString():'clear it to set a level best'):'best '+d.best.toLocaleString(),13,C.dim));y+=38;
+  const st=[['catches',R.latches,C.cyan],['perfect',R.perfects,C.gold],['chords',R.chords,C.mag],['max combo',R.maxCombo,C.cyan],this.secMode?['level',this.level+1,C.vio]:['sector',this.sector+1,C.vio]];
   st.forEach(([k,v,col],i)=>{const x=W/2+(i-2)*((W-56)/5);z(txt(this,x,y,''+v,21,col));z(txt(this,x,y+22,k,9,C.dim,{spacing:1}));});y+=48;
+  if(LR){const st3='★'.repeat(LR.stars)+'☆'.repeat(3-LR.stars);z(txt(this,W/2,y+4,st3,26,C.gold,{glow:C.gold,blur:10,spacing:6}));z(txt(this,W/2,y+28,LR.first?'first clear  +'+LR.dust+' dust':LR.improved?'stars improved '+LR.old+'→'+LR.stars+'  +'+LR.dust+' dust':'replay · 4+ perfects = 2★, 9+ = 3★',11,LR.first||LR.improved?C.gold:C.dim,{weight:'600'}));if(LR.unlocked){const u=z(txt(this,W/2,y+48,'LEVEL '+LR.unlocked+' UNLOCKED!',14,C.cyan,{glow:true,spacing:2}));u.setScale(0);this.tweens.add({targets:u,scale:1,delay:1000,duration:420,ease:'Back.out',onStart:()=>Sfx.sector()});}y+=lrH;}
   if(co){z(txt(this,W/2,y-4,co.h,11,co.col,{spacing:2,weight:'700'}));if(co.a)z(txt(this,W/2,y+14,co.a,12,C.text,{weight:'600'}));z(txt(this,W/2,y+(co.a?32:14),co.t,11,C.dim,{weight:'600'}));y+=coH;}
   // the run's constellation
   const bx=36,bw=W-72,P=this.full;const cg=z(this.add.graphics());cg.fillStyle(C.void,0.6);cg.fillRoundedRect(bx-8,y,bw+16,cH,14);cg.lineStyle(1,C.vio,0.35);cg.strokeRoundedRect(bx-8,y,bw+16,cH,14);
@@ -374,16 +368,18 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
    const prog={n:1};this.tweens.add({targets:prog,n:P.length,duration:Math.min(1600,P.length*40),delay:300,onUpdate:()=>this.constLines(g,P.slice(0,Math.ceil(prog.n)),map,0.6),onComplete:()=>{if(!co||!co.p||!P.includes(co.p))return;const m=map(co.p),mk=z(this.add.graphics());mk.lineStyle(1.6,co.col,1);mk.strokeCircle(m.x,m.y,8);mk.lineStyle(1,co.col,0.5);mk.strokeCircle(m.x,m.y,13);this.tweens.add({targets:mk,alpha:{from:1,to:0.35},yoyo:true,repeat:-1,duration:600});}});}
   else z(txt(this,W/2,y+cH/2+6,'no stars caught',12,C.dim));
   y+=cH+24;
-  z(this.add.image(W/2-48,y,'prism').setTint(C.gold).setScale(0.2));z(txt(this,W/2-32,y,'+'+dust+' dust'+(R.pot?(why==='bank'?'  (pot banked)':'  (½ pot)'):''),19,C.gold,{ox:0}));y+=28;
+  z(this.add.image(W/2-48,y,'prism').setTint(C.gold).setScale(0.2));z(txt(this,W/2-32,y,'+'+dust+' dust'+(this.wasCleared?'  (replay)':''),19,C.gold,{ox:0}));y+=28;
   done.forEach((m,i)=>{const t=z(txt(this,W/2,y,'✓ '+m.text+'  +'+m.reward,12,C.gold,{weight:'600'}));t.setAlpha(0);this.tweens.add({targets:t,alpha:1,delay:1100+i*250,duration:300,onStart:()=>Sfx.buy()});y+=24;});
   if(this.rankUp){const t=z(txt(this,W/2,y,'RANK UP → '+RANKS[this.rankUp].toUpperCase()+'  +'+this.rankUp*40,14,C.cyan,{glow:true}));t.setScale(0);this.tweens.add({targets:t,scale:1,delay:1400,duration:450,ease:'Back.out',onStart:()=>Sfx.sector()});y+=26;}
   const g0=goals[0];if(g0){z(txt(this,W/2,y,d.dust>=g0.c?`You can afford ${g0.n}! → Hangar`:`${(g0.c-d.dust)} dust to ${g0.n}`,12,d.dust>=g0.c?C.gold:C.vio,{weight:'600'}));y+=24;}
   y+=12;const ph2=y+62+18-top;pg.fillStyle(C.ink,0.94);pg.fillRoundedRect(14,top,W-28,ph2,22);pg.lineStyle(2,C.vio,0.7);pg.strokeRoundedRect(14,top,W-28,ph2,22);
-  z(button(this,W/2,y+31,236,62,'AGAIN',C.cyan,()=>{this.cameras.main.fadeOut(160,11,10,31);this.time.delayedCall(170,()=>this.scene.restart({daily:this.daily,mode:this.mode,start:this.startSector}));},{size:26,solid:true,breathe:true,spacing:6}));
-  const by=top+ph2+34,bw2=(W-28-20)/3;
-  z(button(this,14+bw2/2,by,bw2,44,'MENU',C.vio,()=>this.scene.start('Menu'),{size:14,spacing:2}));
-  z(button(this,W/2,by,bw2,44,'SHARE',C.cyan,()=>this.share(),{size:14,spacing:2}));
-  z(button(this,W-14-bw2/2,by,bw2,44,'HANGAR',C.mag,()=>this.scene.start('Hangar'),{size:14,spacing:2}));
+  const go=(o)=>{this.cameras.main.fadeOut(160,11,10,31);this.time.delayedCall(170,()=>o==='levels'?this.scene.start('Levels'):this.scene.restart(o));};
+  const by=top+ph2+34,bw2=(W-28-20)/3;const row=(a)=>a.forEach(([t,col,f],i)=>z(button(this,14+bw2/2+i*(bw2+10),by,bw2,44,t,col,f,{size:14,spacing:2})));
+  if(this.secMode){const nx=this.level+1,canNext=why==='clear'&&nx<LEVELS.length&&nx<d.lv.u;
+   z(button(this,W/2,y+31,250,62,canNext?'NEXT LEVEL ▸':why==='clear'?'REPLAY':'RETRY',C.cyan,()=>go({mode:'sector',level:canNext?nx:this.level}),{size:canNext?22:26,solid:true,breathe:true,spacing:canNext?3:6}));
+   row([[canNext?'REPLAY':'MENU',C.vio,()=>canNext?go({mode:'sector',level:this.level}):this.scene.start('Menu')],['LEVELS',C.vio,()=>go('levels')],[canNext?'MENU':'HANGAR',C.mag,()=>canNext?this.scene.start('Menu'):this.scene.start('Hangar')]]);}
+  else{z(button(this,W/2,y+31,236,62,'AGAIN',C.cyan,()=>go({daily:this.daily,mode:'endless'}),{size:26,solid:true,breathe:true,spacing:6}));
+   row([['MENU',C.vio,()=>this.scene.start('Menu')],['SHARE',C.cyan,()=>this.share()],['HANGAR',C.mag,()=>this.scene.start('Hangar')]]);}
   L.forEach((o,i)=>{if(o.alpha===0)return;const a=o.alpha;o.setAlpha(0);this.tweens.add({targets:o,alpha:a,duration:300,delay:i*20});});}
  share(){const R=this.R,bars='▁▂▃▄▅▆▇█';const mel=this.full.slice(0,28).map((p,i)=>p.p?'✦':bars[Math.floor((((i+1)%10)/10)*8)]).join('');
   const url=location.origin+location.pathname;const text=`ORBITUNE${this.daily?' · Daily '+today():''}\n${R.score.toLocaleString()} pts · sector ${this.sector+1} · ${R.latches} catches · ${R.perfects} perfect · ${R.chords} chords\n♪ ${mel}\nBeat my song: ${url}`;
