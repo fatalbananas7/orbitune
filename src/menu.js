@@ -1,10 +1,10 @@
-import {shake,setFX,FX} from './fx.js?v=7';
-import {R,LW,LH,TS,setupCam} from './dims.js?v=7';
-import {C,txt,button,panel,muteBtn,background,vignette,hex} from './ui.js?v=7';
-import {Sfx} from './audio.js?v=7';
-import {RANKS,rankOf,rankNext} from './game.js?v=7';
-import {LEVELS} from './levels.js?v=7';
-import {SKINS,UPGRADES,upCost,ensureMissions} from './save.js?v=7';
+import {shake,setFX,FX} from './fx.js?v=8';
+import {R,LW,LH,TS,setupCam} from './dims.js?v=8';
+import {C,txt,para,button,panel,muteBtn,background,vignette,hex} from './ui.js?v=8';
+import {Sfx} from './audio.js?v=8';
+import {RANKS,rankOf,rankNext} from './game.js?v=8';
+import {LEVELS} from './levels.js?v=8';
+import {SKINS,UPGRADES,upCost,ensureMissions} from './save.js?v=8';
 const today=()=>new Date().toISOString().slice(0,10);
 export class Menu extends Phaser.Scene{constructor(){super('Menu')}
  create(data){setupCam(this);const W=LW,H=LH,S=this.registry.get('save'),d=S.d;ensureMissions(d);const quick=data&&data.quick;this.mode=d.mode==='sector'?'sector':'endless';setFX(d);if(!d.bestSR)d.bestSR={score:0,sector:0,stars:{}};
@@ -13,9 +13,13 @@ export class Menu extends Phaser.Scene{constructor(){super('Menu')}
   if(d.lastDay!==td){d.streak=d.lastDay===yd?(d.streak||0)+1:1;d.lastDay=td;bonus=Math.min(7,d.streak)*25;d.dust+=bonus;}S.save();
   this.bg=background(this);
   // ---- vertical layout, anchored from bottom so it fits 640..900 tall ----
-  const PAD=16,panH=Math.min(150,Math.max(126,H*0.17)),panY=H-PAD-panH/2,panTop=panY-panH/2;
-  const rowY=panTop-20-29,playY=rowY-29-18-38,modeY=playY-38-14-27,infoY=modeY-27-21,titleY=infoY-64;
-  const heroTop=104,heroBot=titleY-44,k=Phaser.Math.Clamp((heroBot-heroTop)/250,0.5,1.05),cx=W/2,cy=(heroTop+heroBot)/2;
+  // ---- v8 vertical layout: bottom-up with an even rhythm; orders panel shrinks 3 rows -> 2 rows -> pill to keep the hero roomy ----
+  const PAD=16,G=18,cardH=62,playH=86,rowH2=64,infoH=38,lv=d.lv,heroTop=70;
+  const base=PAD+rowH2+G+playH+G+cardH+14+infoH+18+80;let nR=0,panH=52;
+  for(const n of [3,2]){const ph=46+n*40;if(H-(base+ph+G)-heroTop>=170){nR=n;panH=ph;break;}}
+  const panY=H-PAD-panH/2,panTop=panY-panH/2;
+  const rowY=panTop-G-rowH2/2,playY=rowY-rowH2/2-G-playH/2,modeY=playY-playH/2-G-cardH/2,infoY=modeY-cardH/2-14-infoH/2,titleY=infoY-infoH/2-18-58;
+  const heroBot=titleY-40,k=Phaser.Math.Clamp((heroBot-heroTop)/250,0.5,1.05),cx=W/2,cy=(heroTop+heroBot)/2;this.lay={nR,panH,heroH:heroBot-heroTop};
   // hero: orbit demo
   const halo=this.add.image(cx,cy,'glow').setTint(C.vio).setBlendMode('ADD').setScale(3.4*k).setAlpha(0.4);
   this.tweens.add({targets:halo,alpha:0.6,scale:3.7*k,duration:2600,yoyo:true,repeat:-1,ease:'Sine.inOut'});
@@ -31,7 +35,7 @@ export class Menu extends Phaser.Scene{constructor(){super('Menu')}
   this.cg=this.add.image(0,0,'glow').setTint(skin.dark?C.mag:skin.a).setBlendMode('ADD').setScale(0.75);this.cc=this.add.image(0,0,'dot').setScale(0.7);
   // title
   const title=txt(this,W/2,titleY,'ORBITUNE',48,C.text,{glow:C.mag,blur:22,spacing:8});
-  const sub=txt(this,W/2,titleY+33,'every catch is a note',14,C.dim,{weight:'600',spacing:3});
+  const sub=txt(this,W/2,titleY+40,'every catch is a note',14,C.dim,{weight:'600',spacing:3});
   if(!quick){title.setScale(0.7).setAlpha(0);}this.tweens.add({targets:title,scale:1,alpha:1,duration:700,ease:'Back.out'});
   this.tweens.add({targets:title,alpha:0.88,duration:1800,yoyo:true,repeat:-1,delay:800,ease:'Sine.inOut'});
   // ---- top bar: dust pill (reward=gold) | rank | mute ----
@@ -40,49 +44,53 @@ export class Menu extends Phaser.Scene{constructor(){super('Menu')}
   this.add.image(PAD+18,36,'prism').setTint(C.gold).setScale(0.2);this.dustT=txt(this,PAD+32,36,d.dust.toLocaleString(),17,C.gold,{ox:0});
   muteBtn(this,W-PAD-20,36);button(this,W-PAD-66,36,36,36,'?',C.cyan,()=>this.howTo(),{size:17,spacing:0});
   const r=rankOf(d.xp||0),xp=d.xp||0,lo=r?rankNext(r-1):0,hi=rankNext(r),rx=W/2+(dw-48)/2+4;
-  txt(this,rx,30,'RANK '+(r+1),10,C.dim,{spacing:2});txt(this,rx,45,RANKS[r].toUpperCase(),13,C.cyan,{spacing:1.5});
+  txt(this,rx,30,'RANK '+(r+1),11,C.dim,{spacing:2});txt(this,rx,45,RANKS[r].toUpperCase(),13,C.cyan,{spacing:1.5});
   const rg=this.add.graphics();rg.fillStyle(C.ink,1);rg.fillRoundedRect(rx-60,56,120,4,2);rg.fillStyle(C.cyan,1);rg.fillRoundedRect(rx-60,56,Math.max(4,120*Phaser.Math.Clamp((xp-lo)/(hi-lo),0,1)),4,2);
-  // chips row: best · streak
-  const chips=[];const sm=this.mode==='sector';const lv=d.lv,cl=Object.keys(lv.st).length,stt=Object.values(lv.st).reduce((a,b)=>a+b,0);
-  if(sm){chips.push(['LEVELS '+cl+'/'+LEVELS.length,C.vio]);chips.push(['★ '+stt+'/'+LEVELS.length*3,C.gold]);}
-  else{if(d.best>0)chips.push(['BEST '+d.best.toLocaleString(),C.cyan]);if((d.bestH||0)>0)chips.push(['HEIGHT '+Math.round(d.bestH/10)+' m',C.cyan]);}
-  if(d.streak>1&&chips.length<2)chips.push(['DAY '+d.streak+' STREAK',C.mag]);
-  const cw=Math.min(150,(W-32-10*(chips.length-1))/Math.max(1,chips.length));chips.forEach(([t,col],i)=>{const x=W/2+(i-(chips.length-1)/2)*(cw+10);pill(x-cw/2,74,cw,24,col);txt(this,x,86,t,11,col,{spacing:1.5});});
   // ---- mode switch (segmented) + info line ----
   this.next=Math.min(lv.u-1,LEVELS.findIndex((L,i)=>!lv.st[i])<0?lv.u-1:LEVELS.findIndex((L,i)=>!lv.st[i]));
-  const cwd=(W-2*PAD-10)/2,chh=54,cards=[['sector','SECTORS','levels',C.vio,PAD+cwd/2],['endless','ENDLESS','how far',C.cyan,W-PAD-cwd/2]];
-  cards.forEach(([id,lab,sub,col,x])=>{const on=this.mode===id,g=this.add.graphics();g.fillStyle(on?col:C.ink,on?0.26:0.7);g.fillRoundedRect(x-cwd/2,modeY-chh/2,cwd,chh,16);g.lineStyle(on?2:1.5,col,on?1:0.35);g.strokeRoundedRect(x-cwd/2,modeY-chh/2,cwd,chh,16);
-   const ix=x-cwd/2+24,a=on?1:0.5;
+  const cl=Object.keys(lv.st).length,stt=Object.values(lv.st).reduce((a,b)=>a+b,0);
+  const cwd=(W-2*PAD-12)/2,chh=cardH,cards=[['sector','SECTORS','levels · '+cl+'/'+LEVELS.length+'  ★'+stt,C.vio,PAD+cwd/2],['endless','ENDLESS','how far'+(d.best?' · best '+d.best.toLocaleString():''),C.cyan,W-PAD-cwd/2]];
+  cards.forEach(([id,lab,sub,col,x])=>{const on=this.mode===id,g=this.add.graphics();g.fillStyle(on?col:C.ink,on?0.26:0.7);g.fillRoundedRect(x-cwd/2,modeY-chh/2,cwd,chh,18);g.lineStyle(on?2:1.5,col,on?1:0.4);g.strokeRoundedRect(x-cwd/2,modeY-chh/2,cwd,chh,18);
+   const ix=x-cwd/2+22,a=on?1:0.55;
    if(id==='sector'){for(let k=0;k<3;k++){g.fillStyle(col,a*(k<2?1:0.35));g.fillRoundedRect(ix-12+k*9,modeY+8-k*8,7,7,2);}}
    else{g.lineStyle(2,col,a);g.lineBetween(ix,modeY+12,ix,modeY-11);g.lineBetween(ix-7,modeY-4,ix,modeY-11);g.lineBetween(ix+7,modeY-4,ix,modeY-11);g.fillStyle(C.gold,a);g.fillCircle(ix,modeY+13,2.5);}
-   txt(this,ix+20,modeY-8,lab,15,on?C.text:C.dim,{ox:0,spacing:3,weight:'700'});txt(this,ix+20,modeY+11,sub,11,on?col:C.dim,{ox:0,spacing:2,weight:'600'});
-   if(on){g.fillStyle(col,1);g.fillCircle(x+cwd/2-16,modeY,4);}
+   txt(this,ix+20,modeY-10,lab,16,on?C.text:C.dim,{ox:0,spacing:3,weight:'700'});txt(this,ix+20,modeY+12,sub,12.5,on?col:C.dim,{ox:0,spacing:0.5,weight:'600'});
+   if(on){g.fillStyle(col,1);g.fillCircle(x+cwd/2-14,modeY-14,4);}
    const hz=this.add.zone(x,modeY,cwd,chh).setInteractive();hz.on('pointerup',()=>{if(this.mode===id)return;Sfx.init();Sfx.click();d.mode=id;S.save();this.scene.restart({quick:true});});});
-  if(this.mode==='sector'){const L=LEVELS[this.next];button(this,W/2,infoY,Math.min(300,W-2*PAD),30,'▦  LEVEL SELECT   ·   next: '+(this.next+1)+' '+L.n,C.vio,()=>{Sfx.init();this.scene.start('Levels');},{size:12,spacing:1});}
-  else txt(this,W/2,infoY,!d.tut?'release to launch  ·  hold to aim':'always from sector 1  ·  race your ghost',12,C.dim,{weight:'600',spacing:2});
+  if(this.mode==='sector'){const L=LEVELS[this.next];button(this,W/2,infoY,W-2*PAD-20,infoH,'▦  LEVEL SELECT   ·   next: '+(this.next+1)+' '+L.n,C.vio,()=>{Sfx.init();this.scene.start('Levels');},{size:13,spacing:1});}
+  else txt(this,W/2,infoY,!d.tut?'release to launch  ·  hold to aim':'always from sector 1  ·  race your ghost',13,C.dim,{weight:'600',spacing:1.5});
   // ---- PLAY hero ----
-  const play=button(this,W/2,playY,264,76,'PLAY',this.mode==='sector'?C.vio:C.cyan,()=>this.go({}),{size:32,solid:true,breathe:true,spacing:10,sub:this.mode==='sector'?'LEVEL '+(this.next+1)+' · '+LEVELS[this.next].n:'endless climb'});
+  const pc=this.mode==='sector'?C.vio:C.cyan;
+  const play=button(this,W/2,playY,276,playH,'PLAY',pc,()=>this.go({}),{size:34,solid:true,breathe:true,spacing:10,labY:-10,subY:20,subSize:14,subCol:C.text,sub:this.mode==='sector'?'LEVEL '+(this.next+1)+' · '+LEVELS[this.next].n:'endless climb'});
+  if(play.sub)play.sub.setAlpha(0.85);
   if(!quick){play.setScale(0.8).setAlpha(0);this.tweens.add({targets:play,scale:1,alpha:1,duration:500,delay:200,ease:'Back.out'});}
   this.tweens.add({targets:play.label,scale:1.04,duration:900,yoyo:true,repeat:-1,ease:'Sine.inOut'});
   // ---- secondary row ----
   const dd=d.daily.date===td,bw=(W-2*PAD-12)/2;
-  button(this,PAD+bw/2,rowY,bw,58,'DAILY',C.mag,()=>this.go({daily:true}),{size:17,spacing:3,sub:dd?'today best '+d.daily.best.toLocaleString():'new sky today'});
-  button(this,W-PAD-bw/2,rowY,bw,58,'HANGAR',C.vio,()=>this.scene.start('Hangar'),{size:17,spacing:3,sub:'upgrades · trails'});
-  // ---- missions panel ----
-  panel(this,W/2,panY,W-2*PAD,panH,C.vio,0.72);
-  txt(this,PAD+16,panTop+18,'CONSTELLATION ORDERS',11,C.vio,{ox:0,spacing:2});
-  txt(this,W-PAD-16,panTop+18,(d.mDone||0)+' done',11,C.dim,{ox:1,spacing:1});
-  const rowH=(panH-36)/3;
-  d.missions.forEach((m,i)=>{const y=panTop+36+rowH*(i+0.5);const g=this.add.graphics();g.lineStyle(1.5,C.cyan,0.8);g.strokeCircle(PAD+22,y,5);
-   txt(this,PAD+36,y,m.text,13,C.text,{ox:0,weight:'600'});
-   this.add.image(W-PAD-62,y,'prism').setTint(C.gold).setScale(0.13);txt(this,W-PAD-16,y,'+'+m.reward,13,C.gold,{ox:1});
-   if(i<2){g.lineStyle(1,C.vio,0.2);g.lineBetween(PAD+16,y+rowH/2,W-PAD-16,y+rowH/2);}});
+  button(this,PAD+bw/2,rowY,bw,rowH2,'DAILY',C.mag,()=>this.go({daily:true}),{size:18,spacing:3,labY:-9,subY:14,subSize:13.5,sub:dd?'today best '+d.daily.best.toLocaleString():'new sky today'});
+  button(this,W-PAD-bw/2,rowY,bw,rowH2,'HANGAR',C.vio,()=>this.scene.start('Hangar'),{size:18,spacing:3,labY:-9,subY:14,subSize:13.5,sub:'upgrades · trails'});
+  // ---- missions: panel with nR rows, or a pill that opens them ----
+  if(nR){panel(this,W/2,panY,W-2*PAD,panH,C.vio,0.72);
+   txt(this,PAD+18,panTop+22,'CONSTELLATION ORDERS',12,C.vio,{ox:0,spacing:2});
+   txt(this,W-PAD-18,panTop+22,(d.mDone||0)+' done',12,C.dim,{ox:1,spacing:1});
+   this.orderRows(d.missions.slice(0,nR),panTop+44,40,PAD);
+   if(nR<d.missions.length){/* hidden row count hint */}}
+  else{button(this,W/2,panY,W-2*PAD,panH,'CONSTELLATION ORDERS  ·  '+d.missions.length+' active  ▸',C.vio,()=>this.ordersO(),{size:13,spacing:1.5});}
   vignette(this);Sfx.intensity=0;
   if(bonus){this.time.delayedCall(600,()=>{const t=txt(this,W/2,heroBot-6,'DAY '+d.streak+' STREAK  +'+bonus,16,C.gold,{glow:true}).setDepth(999);t.setScale(0);
    this.tweens.add({targets:t,scale:1,duration:400,ease:'Back.out'});this.tweens.add({targets:t,y:t.y-20,alpha:0,delay:2400,duration:600});Sfx.gold();});}
   this.input.once('pointerdown',()=>Sfx.init());
   if(!quick)this.cameras.main.fadeIn(250,11,10,31);
  }
+ orderRows(ms,y0,rh,PAD){const W=LW,O=[];ms.forEach((m,i)=>{const y=y0+rh*(i+0.5);const g=this.add.graphics();g.lineStyle(1.5,C.cyan,0.8);g.strokeCircle(PAD+24,y,5.5);O.push(g);
+   O.push(txt(this,PAD+40,y,m.text,14,C.text,{ox:0,weight:'600'}));
+   O.push(this.add.image(W-PAD-66,y,'prism').setTint(C.gold).setScale(0.14));O.push(txt(this,W-PAD-18,y,'+'+m.reward,14,C.gold,{ox:1}));
+   if(i<ms.length-1){g.lineStyle(1,C.vio,0.2);g.lineBetween(PAD+18,y+rh/2,W-PAD-18,y+rh/2);}});return O;}
+ ordersO(){if(this.howO)return;const W=LW,H=LH,d=this.registry.get('save').d,O=[];const z=o=>{o.setDepth(2000);O.push(o);return o;};this.howO=O;
+  z(this.add.rectangle(W/2,H/2,W,H,C.void,0.8).setInteractive());const ph=56+d.missions.length*46+76,top=(H-ph)/2;z(panel(this,W/2,H/2,W-28,ph,C.vio,0.96));
+  z(txt(this,W/2,top+30,'CONSTELLATION ORDERS',15,C.text,{glow:C.vio,blur:8,spacing:3}));z(txt(this,W/2,top+52,(d.mDone||0)+' done',12,C.dim,{spacing:1}));
+  this.orderRows(d.missions,top+70,46,22).forEach(z);
+  z(button(this,W/2,top+ph-38,180,50,'CLOSE',C.vio,()=>{O.forEach(o=>o.destroy());this.howO=null;},{size:16,spacing:3}));}
  go(o){Sfx.init();this.cameras.main.fadeOut(220,11,10,31);this.time.delayedCall(230,()=>this.scene.start('Game',o.daily||this.mode!=='sector'?{...o,mode:'endless'}:{mode:'sector',level:this.next}));}
  howTo(){if(this.howO)return;Sfx.click();const W=LW,H=LH,O=[];const z=o=>{o.setDepth(2000);O.push(o);return o;};this.howO=O;
   z(this.add.rectangle(W/2,H/2,W,H,C.void,0.85).setInteractive());const ph=Math.min(H-40,600),top=(H-ph)/2;z(panel(this,W/2,H/2,W-28,ph,C.cyan,0.95));
@@ -98,7 +106,7 @@ export class Menu extends Phaser.Scene{constructor(){super('Menu')}
    if(ic==='charged'){z(this.add.image(x,y,'node').setTint(0xE6DCFF).setScale(0.22));g.lineStyle(2.5,0xE6DCFF,1);g.beginPath();g.arc(x,y,16,-Math.PI/2,Math.PI*0.9);g.strokePath();}
    if(ic==='modes'){g.lineStyle(1.5,C.cyan,1);g.strokeRoundedRect(x-18,y-9,17,18,6);g.lineStyle(1.5,C.mag,1);g.strokeRoundedRect(x+1,y-9,17,18,6);}
    z(txt(this,80,y-rh*0.22,h,12,ic==='shield'||ic==='perfect'?C.gold:ic==='haz'?C.danger:C.cyan,{ox:0,spacing:2,weight:'700'}));
-   z(this.add.text(80,y-rh*0.22+10,b,{fontFamily:'"Segoe UI",Roboto,system-ui,sans-serif',fontSize:'11.5px',fontStyle:'600',color:hex(C.text),wordWrap:{width:W-110},lineSpacing:2,resolution:Math.max(2,R*1.25)}));});
+   z(para(this,80,y-rh*0.22+10,b,12,C.text,W-110,{ls:2}));});
   const S=this.registry.get('save'),d=S.d,tw=(W-28-40)/2;const tg=(x,lab,on,f)=>{const b=z(button(this,x,top+ph-86,tw,34,lab+(on?'  ON':'  OFF'),on?C.cyan:C.dim,f,{size:12,spacing:2}));return b;};
   tg(W/2-tw/2-6,'REDUCED FX',!!d.fxr,()=>{d.fxr=!d.fxr;S.save();setFX(d);O.forEach(o=>o.destroy());this.howO=null;this.howTo();});
   tg(W/2+tw/2+6,'VIBRATION',d.vib!==false,()=>{d.vib=d.vib===false;S.save();setFX(d);O.forEach(o=>o.destroy());this.howO=null;this.howTo();});
@@ -109,7 +117,7 @@ export class Menu extends Phaser.Scene{constructor(){super('Menu')}
   for(let i=1;i<n;i++){const k=i/n;g.lineStyle(9*k,k>0.5?D.skin.a:D.skin.b,0.7*k);g.lineBetween(D.trail[i*2-2],D.trail[i*2-1],D.trail[i*2],D.trail[i*2+1]);}
   this.bg.update(t*0.03,t);}
 }
-export {Levels} from './levelsel.js?v=7';
+export {Levels} from './levelsel.js?v=8';
 export class Hangar extends Phaser.Scene{constructor(){super('Hangar')}
  create(){setupCam(this);const W=LW,H=LH,S=this.registry.get('save'),d=S.d;
   this.bg=background(this,0xFFB0F0);

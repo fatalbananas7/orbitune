@@ -1,10 +1,10 @@
-import {R,LW,LH,TS,setupCam} from './dims.js?v=7';
-import {Ghost} from './ghost.js?v=7';
-import {C,txt,button,panel,background,vignette,hex} from './ui.js?v=7';
-import {Sfx} from './audio.js?v=7';
-import {flash,shake,punchZ,hit as hitS,vib,setFX,fa} from './fx.js?v=7';
-import {LEVELS,prof,lvStars} from './levels.js?v=7';
-import {SKINS,UPGRADES,upCost,ensureMissions,newMission} from './save.js?v=7';
+import {R,LW,LH,TS,setupCam} from './dims.js?v=8';
+import {Ghost} from './ghost.js?v=8';
+import {C,txt,button,panel,background,vignette,hex} from './ui.js?v=8';
+import {Sfx} from './audio.js?v=8';
+import {flash,shake,punchZ,hit as hitS,vib,setFX,fa} from './fx.js?v=8';
+import {LEVELS,prof,lvStars} from './levels.js?v=8';
+import {SKINS,UPGRADES,upCost,ensureMissions,newMission} from './save.js?v=8';
 const SECTORS=[{n:'The Nursery',t:0xFFFFFF},{n:'Drift Reef',t:0x9FFFF4},{n:'Shard Veil',t:0xFFB4A0},{n:'Brittle Choir',t:0xD8C4FF},{n:'Event Horizon',t:0xB08CFF},{n:'The Far Song',t:0xFFE6A0}];
 const COLS=[C.cyan,C.mag,C.vio];
 const PER_SECTOR=18;

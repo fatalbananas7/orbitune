@@ -1,5 +1,10 @@
 # Changelog
 
+## v8
+- Menu re-laid out bottom-up with an 18px rhythm: chips row removed (stats moved into mode cards), bigger PLAY/cards/DAILY/HANGAR, 12.5–14px subtext, adaptive Constellation Orders (3 rows → 2 rows → pill + overlay).
+- Global glyph-clip fix: txt() pads for letterSpacing and descenders; new para() for wrapped text.
+- Cache-bust ?v=8.
+
 ## v7 — Levels + Endless, gentler FX
 - **SECTORS = 14 sequential levels** (src/levels.js). Each level is its own run: 18 catches = clear, death/fuel = fail → RETRY. Fresh fuel/shields each level. Level 1 has no hazards and 20% less fuel drain.
 - **LEVEL SELECT** scene: scrollable list with locked (lock icon, dimmed) / unlocked / completed states, 1–3★ and best score per level, glowing NEXT UP marker. Locked levels can't be started (also clamped in Game).

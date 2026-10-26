@@ -1,8 +1,8 @@
-import {R,LW,LH,setupCam} from './dims.js?v=7';
-import {C,txt,button,background,vignette} from './ui.js?v=7';
-import {Sfx} from './audio.js?v=7';
-import {LEVELS} from './levels.js?v=7';
-import {shake,setFX} from './fx.js?v=7';
+import {R,LW,LH,setupCam} from './dims.js?v=8';
+import {C,txt,button,background,vignette} from './ui.js?v=8';
+import {Sfx} from './audio.js?v=8';
+import {LEVELS} from './levels.js?v=8';
+import {shake,setFX} from './fx.js?v=8';
 const HAZ=['calm','drift','drift','shards','shards','cracked','cracked','black holes','pulsars','black holes','mixed','shards','black holes','mixed'];
 export class Levels extends Phaser.Scene{constructor(){super('Levels')}
  create(){setupCam(this);const W=LW,H=LH,S=this.registry.get('save'),d=S.d;setFX(d);const lv=d.lv;this.bg=background(this,0xD8C4FF);
