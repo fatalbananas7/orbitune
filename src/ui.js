@@ -1,5 +1,6 @@
-import {R,LW,LH,TS,setupCam} from './dims.js?v=6';
-import {Sfx} from './audio.js?v=6';
+import {vib} from './fx.js?v=7';
+import {R,LW,LH,TS,setupCam} from './dims.js?v=7';
+import {Sfx} from './audio.js?v=7';
 export const FONT='"Segoe UI",Roboto,"Helvetica Neue",system-ui,sans-serif';
 export const C={void:0x0B0A1F,ink:0x1A1640,dusk:0x3B1E6E,cyan:0x3EF2E0,mag:0xFF4FD8,vio:0x9B7BFF,gold:0xFFC94A,danger:0xFF5A3C,text:0xF4F1FF,dim:0x8E87C9};
 export const hex=(n)=>'#'+n.toString(16).padStart(6,'0');
@@ -15,7 +16,7 @@ export function button(s,x,y,w,h,label,color,cb,opts={}){
  if(opts.sub){c.sub=txt(s,0,13,opts.sub,12,color,{weight:'600'});c.add(c.sub);}
  c.setSize(w,h);c.setInteractive({useHandCursor:true});c.label=t;c.glowImg=glow;c.redraw=draw;
  let down=false;
- c.on('pointerdown',()=>{down=true;draw(true);s.tweens.add({targets:c,scale:0.93,duration:70,ease:'Quad.out'});Sfx.init();Sfx.click();if(navigator.vibrate)try{navigator.vibrate(8)}catch(e){}});
+ c.on('pointerdown',()=>{down=true;draw(true);s.tweens.add({targets:c,scale:0.93,duration:70,ease:'Quad.out'});Sfx.init();Sfx.click();vib(8)});
  c.on('pointerup',()=>{if(!down)return;down=false;draw(false);s.tweens.add({targets:c,scale:1,duration:220,ease:'Back.out'});cb&&cb(c);});
  c.on('pointerout',()=>{down=false;draw(false);s.tweens.add({targets:c,scale:1,duration:150});});
  if(opts.breathe)s.tweens.add({targets:glow,alpha:0.5,duration:900,yoyo:true,repeat:-1,ease:'Sine.inOut'});
