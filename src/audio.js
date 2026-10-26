@@ -27,6 +27,8 @@ export const Sfx={ctx:null,muted:false,intensity:0,key:0,
  hit(){this.noise(0.5,900,0.35,'lowpass',0,120);this.tone(90,0.4,'sawtooth',0.18,0,false);},
  gold(){[0,4,7,12,16].forEach((s,j)=>this.tone(hz(s+24+this.key),0.6,'sine',0.1,j*0.06));},
  overdrive(){if(!this.ctx)return;this.noise(0.9,300,0.16,'bandpass',0,6000);[0,4,7,12,16,19].forEach((k,j)=>this.tone(this.scaleHz(5)*Math.pow(2,k/12),0.9,'sawtooth',0.04,0.05+j*0.05));this.tone(55,0.6,'sine',0.3,0.3,false);[0,7,12].forEach((k,j)=>this.tone(this.scaleHz(10)*Math.pow(2,k/12),1.8,'triangle',0.1,0.32));},
+ event(){if(!this.ctx)return;this.tone(41,2.5,'sine',0.35,0,true,0.4);this.tone(43.6,2.5,'sine',0.2,0,true,0.4);this.noise(2.2,200,0.12,'lowpass',0,60);},
+ setSector(s){const P=[[0,2,4,2,1,3,4,3],[0,4,2,4,1,4,3,4],[4,3,2,0,4,3,1,0],[0,0,3,3,2,2,4,4],[0,1,0,4,0,1,0,3],[0,2,4,5,4,2,1,3]];this.pat=P[s%6];this.key=[0,2,-3,5,-5,7][s%6];},
  click(){this.tone(1200,0.06,'sine',0.08,0,false);},
  buy(){[0,7,12].forEach((s,j)=>this.tone(hz(s+19),0.4,'triangle',0.12,j*0.07));},
  sector(){[0,3,7,10,14].forEach((s,j)=>this.tone(hz(s+12+this.key),1.5,'triangle',0.1,j*0.09));},
@@ -34,7 +36,7 @@ export const Sfx={ctx:null,muted:false,intensity:0,key:0,
  sched(){const c=this.ctx;if(!c||this.muted)return;const spb=60/96/2;
   while(this.next<c.currentTime+0.15){const st=this.step,w=this.next-c.currentTime;const bar=Math.floor(st/16)%4,prog=[0,-4,-2,-7][bar];
    if(st%16===0){this.tone(hz(prog-12+this.key),spb*16,'sine',0.09,w,true,0.6);this.tone(hz(prog-5+this.key),spb*16,'triangle',0.03,w,true,1.2);}
-   if(this.intensity>0.25&&st%2===0){const a=[0,2,4,2,1,3,4,3][(st/2)%8];this.tone(this.scaleHz(5+a)*Math.pow(2,prog/12),spb*1.5,'sine',0.035*Math.min(1,this.intensity*1.5),w);}
+   if(this.intensity>0.25&&st%2===0){const a=(this.pat||[0,2,4,2,1,3,4,3])[(st/2)%8];this.tone(this.scaleHz(5+a)*Math.pow(2,prog/12),spb*1.5,'sine',0.035*Math.min(1,this.intensity*1.5),w);}
    if(this.intensity>0.55&&st%4===2)this.noise(0.04,7000,0.03,'highpass',w);
    if(this.intensity>0.8&&st%8===0)this.tone(60,0.15,'sine',0.12,w,false);
    this.next+=spb;this.step++;}}

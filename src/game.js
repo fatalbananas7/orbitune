@@ -1,7 +1,7 @@
 import {C,txt,button,panel,background,vignette,hex} from './ui.js';
 import {Sfx} from './audio.js';
 import {SKINS,UPGRADES,upCost,ensureMissions,newMission} from './save.js';
-const SECTORS=[{n:'The Nursery',t:0xFFFFFF},{n:'Drift Reef',t:0x9FFFF4},{n:'Shard Veil',t:0xFFB4A0},{n:'Brittle Choir',t:0xD8C4FF},{n:'Pulsar Deep',t:0xFF9FE8},{n:'The Far Song',t:0xFFE6A0}];
+const SECTORS=[{n:'The Nursery',t:0xFFFFFF},{n:'Drift Reef',t:0x9FFFF4},{n:'Shard Veil',t:0xFFB4A0},{n:'Brittle Choir',t:0xD8C4FF},{n:'Event Horizon',t:0xB08CFF},{n:'The Far Song',t:0xFFE6A0}];
 const COLS=[C.cyan,C.mag,C.vio];
 const PER_SECTOR=18;
 export const RANKS=['Spark','Ember','Wanderer','Lantern','Comet','Chorister','Starwright','Nebula Singer','Pulsar Bard','Celestial Maestro'];
@@ -20,7 +20,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   this.R={score:0,latches:0,perfects:0,combo:0,maxCombo:0,chords:0,banks:0,golds:0,loot:0,time:0};
   this.chain=0;this.lastCol=-1;this.hes=0;
   this.bg=background(this,SECTORS[this.sector%6].t);
-  this.nodes=[];this.haz=[];this.camY=0;this.genY=H-170;
+  this.nodes=[];this.haz=[];this.holes=[];this.camY=0;this.genY=H-170;
   this.constG=this.add.graphics().setBlendMode('ADD').setDepth(1);this.full=[];this.motes=[];this.moteChain=0;
   this.bestH=this.daily?(d.daily.date===today()?d.daily.h||0:0):(d.bestH||0);if(this.bestH>200){this.bestLine=this.add.graphics().setDepth(1);const yy=H-170-this.bestH;for(let x=0;x<W;x+=18){this.bestLine.lineStyle(2,C.gold,0.55);this.bestLine.lineBetween(x,yy,x+9,yy);}this.bestTxt=txt(this,W-14,yy-12,'YOUR BEST',11,C.gold,{ox:1,spacing:2}).setDepth(1);this.passedBest=false;}
   this.trailG=this.add.graphics().setBlendMode('ADD').setDepth(5);this.fxG=this.add.graphics().setDepth(6);
@@ -44,10 +44,12 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
    if(this.c.state==='orbit')this.press={id:p.id,t:this.time.now,x:p.x,y:p.y,sw:false};});
   this.input.on('pointermove',(p)=>{const pr=this.press;if(!pr||pr.id!==p.id||pr.sw)return;if(Math.hypot(p.x-pr.x,p.y-pr.y)>48){pr.sw=true;this.reverse();}});
   this.input.on('pointerup',(p)=>{const pr=this.press;if(!pr||pr.id!==p.id)return;this.press=null;if(!pr.sw&&this.c.state==='orbit'&&!this.over&&!this.paused)this.launch();});
+  const cancel=()=>{this.press=null;};this.input.on('pointerupoutside',(p)=>{const pr=this.press;if(pr&&pr.id===p.id){this.press=null;if(!pr.sw&&this.c.state==='orbit'&&!this.over&&!this.paused)this.launch();}});
+  this.game.canvas.addEventListener('pointercancel',cancel);this.game.canvas.addEventListener('touchcancel',cancel);this.events.once('shutdown',()=>{this.game.canvas.removeEventListener('pointercancel',cancel);this.game.canvas.removeEventListener('touchcancel',cancel);});
   this.vis=()=>{if(document.hidden&&!this.over)this.pause(true);};document.addEventListener('visibilitychange',this.vis);
   this.events.once('shutdown',()=>document.removeEventListener('visibilitychange',this.vis));
   this.cameras.main.fadeIn(300,11,10,31);
-  Sfx.intensity=0.15;Sfx.key=[0,2,-3,5,-2,7][this.sector%6];
+  Sfx.intensity=0.15;Sfx.setSector(this.sector);
   this.tutStep=d.tut?99:0;if(!d.tut)this.hint('RELEASE to launch',"tap anywhere — fly tangent to your orbit");
   this.banner(this.daily?'DAILY CONSTELLATION':SECTORS[this.sector%6].n,this.daily?today():'SECTOR '+(this.sector+1));
  }
@@ -60,20 +62,24 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   if(type==='fragile'){n.crack=this.add.image(x,y,'ring').setTint(C.text).setAlpha(0.6).setDepth(3);}
   n.body.setScale(0);this.tweens.add({targets:n.body,scale:(type==='gold'?r/40:r/62),duration:400,ease:'Back.out'});
   this.nodes.push(n);this.sizeNode(n);return n;}
- sizeNode(n){n.glow.setScale(n.r/64*3).setPosition(n.x,n.y);n.ring.setScale((n.r+this.catchR+(this.overdrive?10:0))/61).setPosition(n.x,n.y);n.body.setPosition(n.x,n.y);if(n.type==='pulsar'&&n.body.scale>0.1)n.body.setScale(n.r/62);if(n.crack)n.crack.setPosition(n.x,n.y).setScale((n.r+6)/60*(1-Math.min(1,n.orbitT/1.5)*0.6));}
+ sizeNode(n){n.glow.setScale(n.r/64*3).setPosition(n.x,n.y);n.ring.setScale((n.r+this.crEff())/61).setPosition(n.x,n.y);n.body.setPosition(n.x,n.y);if(n.type==='pulsar'&&n.body.scale>0.1)n.body.setScale(n.r/62);if(n.crack)n.crack.setPosition(n.x,n.y).setScale((n.r+6)/60*(1-Math.min(1,n.orbitT/1.5)*0.6));}
  spawnRow(){const s=this.sector,R=this.rng,W=this.W;this.genY-=(150+R()*55)*(1+Math.min(s,6)*0.025);
   const xs=R()<0.36?[50+R()*(W/2-100),W/2+50+R()*(W/2-100)]:[60+R()*(W-120)];
   xs.forEach(x=>{let type='normal';const q=R();
    if(q<0.045&&this.genY<0)type='gold';else if(s>=1&&q<0.32)type='moving';else if(s>=3&&q<0.55)type='fragile';else if(s>=4&&q<0.75)type='pulsar';
    const r=Math.max(18,(22+R()*13)-Math.min(s,6)*0.8);this.makeNode(x,this.genY+(R()-0.5)*40,Math.floor(R()*3),r,type);});
   if(R()<0.55){const mx=40+R()*(W-80),my=this.genY+60+R()*40;for(let k=0;k<3;k++){const m={x:mx+(k-1)*22,y:my+Math.sin(k)*8};m.o=this.add.image(m.x,m.y,'dot').setTint(C.gold).setBlendMode('ADD').setScale(0.45).setDepth(3);this.tweens.add({targets:m.o,scale:0.6,yoyo:true,repeat:-1,duration:500+k*90,ease:'Sine.inOut'});this.motes.push(m);}}
-  if(s>=2&&R()<0.28+0.06*Math.min(s-2,4)){const h={y:this.genY+75+R()*30,x:R()*W,sp:(50+R()*60+s*8)*(R()<0.5?-1:1),ph:R()*6};
+  if(s>=4&&R()<(s===4?0.34:0.12)&&this.genY<this.camY-200){const side=R()<0.5,hx=side?40+R()*60:W-40-R()*60,hy=this.genY+90;
+   const bh={x:hx,y:hy,r:20};bh.glow=this.add.image(hx,hy,'glow').setTint(C.mag).setBlendMode('ADD').setScale(2.6).setAlpha(0.45).setDepth(2);
+   bh.disk=this.add.image(hx,hy,'dash').setTint(C.vio).setBlendMode('ADD').setScale(0.9).setDepth(2);bh.ring=this.add.image(hx,hy,'ring').setTint(C.mag).setBlendMode('ADD').setScale(0.48).setDepth(3);
+   bh.core=this.add.circle(hx,hy,18,0x000000,1).setDepth(3);bh.pull=this.add.image(hx,hy,'dash').setTint(C.vio).setAlpha(0.12).setScale(3.6).setDepth(1);this.holes.push(bh);}
+  if(s>=2&&R()<0.28+0.06*Math.min(s-2,4)){const h={y:this.genY+75+R()*30,x:R()*W,sp:(50+R()*60+s*8)*(R()<0.5?-1:1)*(s===2?0.6:1),ph:R()*6,arm:0};h.tr=this.add.graphics().setDepth(1);for(let x=4;x<W;x+=16){h.tr.fillStyle(C.danger,0.22);h.tr.fillRect(x,h.y-1,7,2);}
    h.g=this.add.image(h.x,h.y,'glow').setTint(C.danger).setBlendMode('ADD').setAlpha(0.5).setScale(0.6).setDepth(2);h.s=this.add.image(h.x,h.y,'shard').setTint(C.danger).setScale(0.5).setDepth(3);this.haz.push(h);}}
  killNode(n,fx){n.alive=false;if(fx){this.burst.particleTint=COLS[n.col];this.burst.explode(26,n.x,n.y);}
   [n.glow,n.ring,n.body,n.crack].forEach(o=>o&&o.destroy());}
  // ---------- actions ----------
  reverse(){if(this.c.state!=='orbit')return;this.c.dir*=-1;Sfx.tone(Sfx.scaleHz(3),0.15,'sine',0.08);this.burst.particleTint=this.skin.a;this.burst.explode(8,this.c.x,this.c.y);this.vib(6);
-  if(this.tutStep===2){this.tutStep=3;this.hint('Catch tight to the star','for a PERFECT — fuel & big points');}}
+  if(this.tutStep===3){this.tutStep=4;this.tutN=this.R.latches;this.hint('Catch TIGHT to a star','skim its rim for a PERFECT');}}
  launch(){const c=this.c,tx=-Math.sin(c.ang)*c.dir,ty=Math.cos(c.ang)*c.dir,sp=560+20*Math.min(this.sector,8);
   c.vx=tx*sp;c.vy=ty*sp;c.state='fly';c.last=c.node;c.ft=0;c.b=0;Sfx.launch();this.vib(10);
   const n=c.node;if(n.alive)this.tweens.add({targets:n.body,scale:n.body.scale*0.86,duration:80,yoyo:true});
@@ -97,9 +103,8 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   this.tweens.add({targets:this.scoreT,scale:{from:1.2,to:1},duration:220,ease:'Back.out'});this.vib(perfect?18:8);
   if(R.combo===12&&!this.overdrive)this.setOverdrive(true);
   this.secLatch++;if(this.secLatch>=PER_SECTOR&&!this.daily||this.daily&&this.secLatch>=PER_SECTOR){this.secLatch=0;this.sector++;this.newSector();}
-  if(this.tutStep===1&&R.latches>=1){this.tutStep=2;this.hint('HOLD to slow time & aim','swipe while holding to reverse orbit');}
-  else if(this.tutStep===2&&R.latches>=6){this.tutStep=3;this.hint('Catch tight to the star','for a PERFECT — fuel & big points');}
-  else if(this.tutStep===3&&R.latches>=11){this.tutStep=99;this.clearHint();}}
+  if(this.tutStep===1&&R.latches>=1){this.tutStep=2;this.holdT=0;this.hint('Now HOLD your finger down','time slows · a dotted line shows your path');}
+  else if(this.tutStep===4&&(perfect||R.latches>=this.tutN+5)){this.tutStep=99;this.hint(perfect?'PERFECT! You\'ve got it':'You\'ve got it','fuel burns faster as you climb — good luck');this.time.delayedCall(2200,()=>{if(this.tutStep===99)this.clearHint();});}}
  drawConst(){this.constLines(this.constG,this.full.slice(-24),(p)=>p,1);}
  constLines(g,P,map,sc){g.clear();for(let i=1;i<P.length;i++){const k=sc<1?1:i/P.length,a=map(P[i-1]),b=map(P[i]);g.lineStyle(7*sc,C.vio,0.07*k);g.lineBetween(a.x,a.y,b.x,b.y);g.lineStyle(1.6,P[i].ch?C.mag:C.vio,0.2+0.5*k);g.lineBetween(a.x,a.y,b.x,b.y);}
   P.forEach((p,i)=>{const k=sc<1?1:(i+1)/P.length,m=map(p);if(p.ch){g.lineStyle(1.5,C.mag,0.8*k);g.strokeCircle(m.x,m.y,7*Math.max(sc,0.7));}
@@ -107,6 +112,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
  punch(z,d){const cam=this.cameras.main;this.tweens.killTweensOf(cam);cam.setZoom(z);this.tweens.add({targets:cam,zoom:1,duration:d,ease:'Cubic.out'});}
  perfectText(x,y){const t=txt(this,x,y-44,'PERFECT',30,C.gold,{glow:C.gold,blur:16,spacing:4}).setDepth(21).setScale(1.8).setAlpha(0);
   this.tweens.add({targets:t,scale:1,alpha:1,duration:160,ease:'Back.out'});this.tweens.add({targets:t,y:y-80,alpha:0,delay:420,duration:420,ease:'Cubic.in',onComplete:()=>t.destroy()});}
+ crEff(){return this.catchR+(this.overdrive?10:0)+Math.max(0,12-6*this.sector);}
  mult(){return Math.min(5,1+Math.floor(this.R.combo/6))*(this.overdrive?2:1);}
  loot(n){const R=this.R,q=Math.random();R.golds++;Sfx.gold();this.sparks.explode(40,n.x,n.y);this.ringWave(n.x,n.y,C.gold,3);let t;
   if(q<0.03){R.loot+=150;t='JACKPOT +150 dust';this.cameras.main.flash(250,255,201,74);}else if(q<0.55){const v=10+Math.floor(Math.random()*25);R.loot+=v;t='+'+v+' dust';}
@@ -120,9 +126,9 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
    this.tweens.add({targets:[t,t2],alpha:0,delay:1500,duration:500,onComplete:()=>{t.destroy();t2.destroy();}});
    this.odEdge.setAlpha(0);this.tweens.add({targets:this.odEdge,alpha:{from:0.9,to:0.45},duration:600,yoyo:true,repeat:-1,ease:'Sine.inOut'});
    this.cg.setTint(C.gold);this.dust.particleTint=C.gold;}else{this.tweens.killTweensOf(this.odEdge);this.tweens.add({targets:this.odEdge,alpha:0,duration:300});this.cg.setTint(this.skin.dark?C.mag:this.skin.a);this.dust.particleTint=this.skin.b;}}
- newSector(){const s=this.sector;Sfx.key=[0,2,-3,5,-2,7][s%6];Sfx.sector();this.bg.neb.setTint(SECTORS[s%6].t);this.banner(s<6?SECTORS[s].n:SECTORS[5].n+' '+(s-4),'SECTOR '+(s+1));
+ newSector(){const s=this.sector;Sfx.setSector(s);Sfx.sector();this.bg.neb.setTint(SECTORS[s%6].t);this.banner(s<6?SECTORS[s].n:SECTORS[5].n+' '+(s-4),s===4?'EVENT · black holes bend your flight':'SECTOR '+(s+1));if(s===4){this.punch(1.06,700);this.cameras.main.shake(500,0.005);Sfx.event();}
   this.fuel=Math.min(100,this.fuel+30);this.R.score+=250*(s);this.cameras.main.flash(300,155,123,255);if(!this.overdrive)Sfx.intensity=Math.min(0.7,0.2+s*0.12);}
- damage(why){if(this.inv>0||this.over)return;this.lives--;this.vib([30,40,30]);Sfx.hit();this.cameras.main.shake(260,0.012);this.hitstop=0.07;
+ damage(why){if(this.inv>0||this.over)return;if(this.tutStep<99&&!this.d.tut){this.inv=1.2;this.cameras.main.shake(150,0.006);Sfx.hit();this.float(this.c.x,this.c.y-40,'practice — no harm',C.dim,13);return;}this.lives--;this.vib([30,40,30]);Sfx.hit();this.cameras.main.shake(260,0.012);this.hitstop=0.07;
   this.flash.setFillStyle(C.danger,0.35);this.tweens.add({targets:this.flash,alpha:{from:1,to:0},duration:350});this.sparks.particleTint=C.danger;this.sparks.explode(30,this.c.x,this.c.y);this.sparks.particleTint=C.gold;
   this.R.combo=0;this.chain=0;if(this.overdrive)this.setOverdrive(false);
   if(this.lives<=0){this.end(why);return;}this.inv=1.6;this.float(this.c.x,this.c.y-40,'SHIELD BROKEN',C.danger,16);}
@@ -133,7 +139,7 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   c.state='orbit';c.node=n;c.ang=-Math.PI/2;c.r=n.r+30;n.orbitT=0;c.trail=[];this.ringWave(n.x,n.y,C.text,2);}
  // ---------- fx ----------
  vib(p){if(navigator.vibrate)try{navigator.vibrate(p)}catch(e){}}
- float(x,y,s,col,size){const t=txt(this,x,y,s,size,col,{glow:col,blur:10}).setDepth(20).setScale(0.5);this.tweens.add({targets:t,scale:1,duration:180,ease:'Back.out'});this.tweens.add({targets:t,y:y-46,alpha:0,delay:350,duration:600,ease:'Cubic.in',onComplete:()=>t.destroy()});}
+ float(x,y,s,col,size){x=Phaser.Math.Clamp(x,70,this.W-70);const t=txt(this,x,y,s,size,col,{glow:col,blur:10}).setDepth(20).setScale(0.5);this.tweens.add({targets:t,scale:1,duration:180,ease:'Back.out'});this.tweens.add({targets:t,y:y-46,alpha:0,delay:350,duration:600,ease:'Cubic.in',onComplete:()=>t.destroy()});}
  ringWave(x,y,col,s){const r=this.add.image(x,y,'ring').setTint(col).setBlendMode('ADD').setScale(0.3).setDepth(7);this.tweens.add({targets:r,scale:s,alpha:0,duration:520,ease:'Cubic.out',onComplete:()=>r.destroy()});}
  banner(a,b){const W=this.W,y=this.H*0.36;const t1=txt(this,W/2,y,a,30,C.text,{glow:C.mag,blur:18,spacing:4}).setScrollFactor(0).setDepth(960).setAlpha(0);const t2=txt(this,W/2,y+34,b,13,C.vio,{spacing:4}).setScrollFactor(0).setDepth(960).setAlpha(0);
   [t1,t2].forEach((t,i)=>{t.x=W/2+60;this.tweens.add({targets:t,x:W/2,alpha:1,duration:420,delay:i*80,ease:'Cubic.out'});this.tweens.add({targets:t,x:W/2-60,alpha:0,delay:1700+i*80,duration:380,ease:'Cubic.in',onComplete:()=>t.destroy()});});}
@@ -162,14 +168,14 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
   const c=this.c,W=this.W,H=this.H,R=this.R;
   const holding=this.press&&!this.press.sw&&time-this.press.t>160&&c.state==='orbit'&&this.focus>0&&!this.over;
   let ts=this.over?0.25:(holding?0.3:1);if(holding)this.focus=Math.max(0,this.focus-dt*0.6);else this.focus=Math.min(this.focusMax,this.focus+dt*0.07);
-  this.time.timeScale=1;const sdt=dt*ts;if(!this.over)R.time+=dt;this.inv=Math.max(0,this.inv-dt);
-  const cr=this.catchR+(this.overdrive?10:0),tt=time/1000;
+  this.time.timeScale=1;if(holding&&this.tutStep===2){this.holdT+=dt;if(this.holdT>0.45){this.tutStep=3;this.hint('While holding, SLIDE to reverse','flip your orbit direction — then let go');}}const sdt=dt*ts;if(!this.over)R.time+=dt;this.inv=Math.max(0,this.inv-dt);
+  const cr=this.crEff(),tt=time/1000;
   for(const n of this.nodes){if(!n.alive)continue;if(n.type==='moving')n.x=Phaser.Math.Clamp(n.bx+Math.sin(tt*n.sp+n.ph)*n.amp,n.br+10,W-n.br-10);
    if(n.type==='pulsar')n.r=n.br*(1+0.28*Math.sin(tt*2.4+n.ph));this.sizeNode(n);}
-  for(const h of this.haz){h.x+=h.sp*sdt;if(h.x<-30)h.x=W+30;if(h.x>W+30)h.x=-30;const y=h.y+Math.sin(tt*2+h.ph)*14;h.g.setPosition(h.x,y);h.s.setPosition(h.x,y).setRotation(tt*3*Math.sign(h.sp));h.cy=y;}
+  for(const h of this.haz){h.x+=h.sp*sdt;if(h.x<-30)h.x=W+30;if(h.x>W+30)h.x=-30;const y=h.y+Math.sin(tt*2+h.ph)*14;h.g.setPosition(h.x,y).setAlpha(0.35+0.25*Math.sin(tt*6+h.ph));if(!h.armed&&h.y>this.camY-20){h.arm+=dt;if(h.arm>0.9)h.armed=true;h.s.setAlpha(0.4+0.6*Math.min(1,h.arm/0.9));}h.s.setPosition(h.x,y).setRotation(tt*3*Math.sign(h.sp));h.cy=y;}
   if(c.state==='orbit'){const n=c.node;if(n.type==='pulsar')c.r=Phaser.Math.Clamp(c.r,n.r+14,n.r+60);
    c.ang+=c.dir*(300+18*Math.min(this.sector,8))/c.r*sdt;c.x=n.x+Math.cos(c.ang)*c.r;c.y=n.y+Math.sin(c.ang)*c.r;
-   if(!this.over){this.fuel-=(6+Math.min(6,this.R.time*0.05)+this.sector*0.6)*this.drainK*sdt;n.orbitT+=sdt;this.hes+=sdt;if(this.hes>2.6&&R.combo>0){R.combo=0;if(this.overdrive)this.setOverdrive(false);this.float(c.x,c.y-30,'combo faded',C.dim,13);}
+   if(!this.over){this.fuel-=(6+Math.min(6,this.R.time*0.05)+this.sector*0.6)*this.drainK*Math.min(1,0.7+this.R.time/80)*sdt;n.orbitT+=sdt;this.hes+=sdt;if(this.hes>2.6&&R.combo>0){R.combo=0;if(this.overdrive)this.setOverdrive(false);this.float(c.x,c.y-30,'combo faded',C.dim,13);}
     if(n.type==='fragile'&&n.orbitT>1.5){this.killNode(n,true);Sfx.noise(0.3,2000,0.12);c.vx=-Math.sin(c.ang)*c.dir*420;c.vy=Math.cos(c.ang)*c.dir*420;c.state='fly';c.last=null;c.ft=0;c.b=0;}}}
   else if(c.state==='fly'){c.ft+=sdt;if(!this.over)this.fuel-=3.5*this.drainK*sdt;
    // gentle gravity assist toward nearest node in reach
@@ -178,13 +184,19 @@ export class Game extends Phaser.Scene{constructor(){super('Game')}
    if(c.b<1&&(c.x<10&&c.vx<0||c.x>W-10&&c.vx>0)){c.vx*=-1;c.b++;Sfx.bounce();this.burst.particleTint=C.text;this.burst.explode(10,c.x,c.y);this.ringWave(c.x,c.y,C.text,0.6);}
    if(!this.over)for(const n of this.nodes){if(!n.alive||(n===c.last&&c.ft<0.35))continue;const dd=Math.hypot(n.x-c.x,n.y-c.y);if(dd<n.r+cr){this.latch(n,dd);break;}}
    if(c.state==='fly'&&!this.over&&(c.ft>2.4||c.x<-30||c.x>W+30||c.y>this.camY+H+30||c.y<this.camY-80))this.lost();}
-  if(!this.over&&this.inv<=0)for(const h of this.haz){if(Math.hypot(h.x-c.x,(h.cy||h.y)-c.y)<20){this.damage('shard');break;}}
+  for(const bh of this.holes){bh.disk.rotation+=dt*2.2;bh.pull.rotation-=dt*0.4;bh.ring.setScale(0.48+0.04*Math.sin(tt*5));
+   const dx=bh.x-c.x,dy=bh.y-c.y,dd=Math.hypot(dx,dy);
+   if(c.state==='fly'&&dd<230&&dd>1){const a=480*(1-dd/230)+90;c.vx+=dx/dd*a*sdt;c.vy+=dy/dd*a*sdt;if(Math.random()<0.5){this.burst.particleTint=C.vio;this.burst.emitParticleAt(c.x,c.y,1);}}
+   if(!this.over&&dd<bh.r+6&&c.state==='fly'){this.ringWave(bh.x,bh.y,C.mag,2.5);this.lost();}}
+  this.holes=this.holes.filter(bh=>{if(bh.y>this.camY+H+150){['glow','disk','ring','core','pull'].forEach(k=>bh[k].destroy());return false;}return true;});
+  if(!this.over&&this.inv<=0)for(const h of this.haz){if(h.armed&&Math.hypot(h.x-c.x,(h.cy||h.y)-c.y)<20){this.damage('shard');break;}}
+  if(this.tutStep<99&&!this.d.tut)this.fuel=Math.max(this.fuel,40);
   if(!this.over&&this.fuel<=0){this.fuel=0;this.end('fuel');}
   // camera (only rises)
   const ty=(c.state==='orbit'?c.node.y:c.y)-H*0.62;if(ty<this.camY)this.camY+=(ty-this.camY)*Math.min(1,dt*3.2);this.cameras.main.scrollY=this.camY;
   while(this.genY>this.camY-H*0.6)this.spawnRow();
   this.nodes=this.nodes.filter(n=>{if(n.alive&&n.y>this.camY+H+160&&n!==c.node)this.killNode(n);return n.alive;});
-  this.haz=this.haz.filter(h=>{if(h.y>this.camY+H+120){h.g.destroy();h.s.destroy();return false;}return true;});
+  this.haz=this.haz.filter(h=>{if(h.y>this.camY+H+120){h.g.destroy();h.s.destroy();h.tr.destroy();return false;}return true;});
   for(const m of this.motes){if(!m.dead&&Math.hypot(m.x-c.x,m.y-c.y)<24&&!this.over){m.dead=true;m.o.destroy();this.moteChain++;R.score+=5*this.mult();this.fuel=Math.min(100,this.fuel+2.5);Sfx.tone(Sfx.scaleHz(10+this.moteChain%8),0.25,'sine',0.07);this.sparks.explode(5,m.x,m.y);R.motes=(R.motes||0)+1;}}
   this.motes=this.motes.filter(m=>{if(!m.dead&&m.y>this.camY+H+100){m.o.destroy();m.dead=true;}return !m.dead;});if(c.state==='orbit')this.moteChain=0;
   this.height=Math.max(this.height||0,H-170-c.y);if(this.bestLine&&!this.passedBest&&this.height>this.bestH){this.passedBest=true;this.banner('PAST YOUR BEST','keep climbing');Sfx.gold();this.cameras.main.flash(200,255,201,74);this.bestTxt.setText('★ NEW BEST');}
